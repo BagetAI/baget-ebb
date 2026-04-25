@@ -1,6 +1,9 @@
 const { useState, useEffect } = React;
 const { motion, AnimatePresence } = window.Motion || { motion: { div: ({children, ...props}) => <div {...props}>{children}</div>, section: ({children, ...props}) => <section {...props}>{children}</div>, h1: ({children, ...props}) => <h1 {...props}>{children}</div>, p: ({children, ...props}) => <p {...props}>{children}</div> }, AnimatePresence: ({children}) => <>{children}</> };
 
+// Import simulated service (in production this would be an API call to our backend)
+const USER_INTEGRATIONS_DB = 'c06cb451-345f-44d1-a6f1-cad8cdfeb79c';
+
 const Navbar = () => (
   <nav className="flex items-center justify-between py-6 px-6 max-w-7xl mx-auto">
     <div className="flex items-center gap-3">
@@ -17,7 +20,7 @@ const Navbar = () => (
 
 const Hero = () => {
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState('idle'); // idle, loading, success, error
+  const [status, setStatus] = useState('idle'); // idle, loading, success, auth_ready, completed
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,14 +38,40 @@ const Hero = () => {
         })
       });
       if (response.ok) {
-        setStatus('success');
-        setEmail('');
+        setStatus('auth_ready');
       } else {
         setStatus('error');
       }
     } catch (err) {
       setStatus('error');
     }
+  };
+
+  const handleConnect = async () => {
+    setStatus('loading');
+    // Simulated Google OAuth Flow
+    setTimeout(async () => {
+      const mockData = {
+        user_id: `google_${Math.random().toString(36).substr(2, 9)}`,
+        email: email,
+        access_token: 'ya29.v_mock_access_token',
+        refresh_token: '1//mock_refresh_token',
+        expiry_date: Date.now() + 3600000,
+        reset_calendar_id: `ebb_reset_${Math.random().toString(36).substr(2, 9)}`,
+        sync_status: 'active'
+      };
+
+      try {
+        await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: mockData })
+        });
+        setStatus('completed');
+      } catch (e) {
+        setStatus('error');
+      }
+    }, 2000);
   };
 
   return (
@@ -58,9 +87,30 @@ const Hero = () => {
           </p>
           
           <div className="max-w-md">
-            {status === 'success' ? (
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-3xl border border-ebb-sage shadow-sm animate-pulse">
-                <p className="text-ebb-sage font-semibold text-lg text-center">Thank you. You're on the list for the Great Reset.</p>
+            {status === 'completed' ? (
+              <div className="bg-white/90 backdrop-blur-md p-8 rounded-[32px] border border-ebb-sage shadow-xl shadow-ebb-sage/10 space-y-4">
+                <div className="h-12 w-12 bg-ebb-sage/20 rounded-full flex items-center justify-center text-ebb-sage mx-auto">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h3 className="text-2xl font-serif font-semibold text-center">Calendar Connected</h3>
+                <p className="text-center text-slate-500">We've created your "Reset Plan" calendar. Check your email for the next steps in your Life Design journey.</p>
+                <button className="w-full py-4 bg-ebb-slate text-white rounded-full font-semibold hover:bg-black transition-all">Go to Dashboard</button>
+              </div>
+            ) : status === 'auth_ready' ? (
+              <div className="bg-white/80 backdrop-blur-sm p-8 rounded-[32px] border border-ebb-sage/30 shadow-lg space-y-6">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-serif font-semibold">Step 2: The Connection</h3>
+                  <p className="text-slate-500">To design your week, Ebb needs to see your current commitments. We only create events in a new, separate calendar.</p>
+                </div>
+                <button
+                  onClick={handleConnect}
+                  disabled={status === 'loading'}
+                  className="w-full py-5 bg-white border border-slate-200 rounded-full flex items-center justify-center gap-4 hover:bg-slate-50 transition-all shadow-sm font-medium text-lg disabled:opacity-50"
+                >
+                  <img src="https://www.google.com/favicon.ico" alt="" className="w-5 h-5" />
+                  {status === 'loading' ? 'Initializing...' : 'Connect Google Calendar'}
+                </button>
+                <p className="text-xs text-center text-slate-400 px-4">Secure OAuth 2.0. No password sharing. Ebb defaults to a read-only view of your primary calendar.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="relative group">
@@ -83,7 +133,9 @@ const Hero = () => {
             {status === 'error' && (
               <p className="mt-4 text-red-500 text-sm px-4">Something went wrong. Please try again.</p>
             )}
-            <p className="mt-4 text-slate-400 text-sm px-4">Join 2,400+ professionals designing their recovery.</p>
+            {status === 'idle' && (
+              <p className="mt-4 text-slate-400 text-sm px-4">Join 2,400+ professionals designing their recovery.</p>
+            )}
           </div>
         </div>
         
@@ -104,7 +156,7 @@ const Problem = () => (
   <section className="bg-white py-24 px-6">
     <div className="max-w-7xl mx-auto">
       <div className="text-center mb-16">
-        <h2 className="text-4xl font-serif font-semibold mb-6">The Modern Friction</h2>
+        <h2 className="text-4xl font-serif font-semibold mb-6 text-ebb-slate">The Modern Friction</h2>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto">Most calendars are built for meetings, not for humans. Ebb treats your life as the priority.</p>
       </div>
       <div className="grid md:grid-cols-2 gap-8">
@@ -112,12 +164,10 @@ const Problem = () => (
           {
             title: "The Burnout Epidemic",
             desc: "Knowledge workers spend 40% of their week on low-value reactive tasks. We've lost the ability to design our own time.",
-            icon: "biological-neutrals"
           },
           {
             title: "Stolen Time",
             desc: "We lose hours every week to doom-scrolling and schedule creep. Ebb helps you reclaim 10-15 hours of 'stolen time' weekly.",
-            icon: "recovery"
           }
         ].map((item, i) => (
           <div key={i} className="p-10 rounded-3xl bg-ebb-cream/50 border border-ebb-cream hover:border-ebb-sage/20 transition-all">
@@ -143,7 +193,7 @@ const HowItWorks = () => (
           <div key={i} className="relative">
             <div className="text-8xl font-serif text-ebb-sage/10 absolute -top-12 -left-4 font-bold">{item.step}</div>
             <div className="relative z-10">
-              <h3 className="text-2xl font-serif font-semibold mb-4">{item.title}</h3>
+              <h3 className="text-2xl font-serif font-semibold mb-4 text-ebb-slate">{item.title}</h3>
               <p className="text-lg text-slate-600">{item.desc}</p>
             </div>
           </div>
@@ -184,10 +234,10 @@ const Feature = () => (
 const Privacy = () => (
   <section id="privacy" className="py-24 px-6 border-t border-ebb-sage/10">
     <div className="max-w-3xl mx-auto text-center">
-      <div className="inline-block p-3 rounded-2xl bg-ebb-sage/10 mb-8">
-        <svg className="w-8 h-8 text-ebb-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+      <div className="inline-block p-3 rounded-2xl bg-ebb-sage/10 mb-8 text-ebb-sage">
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
       </div>
-      <h2 className="text-4xl font-serif font-semibold mb-6">Privacy as a Foundation</h2>
+      <h2 className="text-4xl font-serif font-semibold mb-6 text-ebb-slate">Privacy as a Foundation</h2>
       <p className="text-xl text-slate-600 leading-relaxed">
         Your schedule is your life. Ebb reads events to understand your context but defaults to a separate "Reset Plan" calendar. We never overwrite or delete your events without explicit confirmation.
       </p>
@@ -204,7 +254,7 @@ const Footer = () => (
       </div>
       <p className="text-slate-400 text-sm">© 2026 Ebb Life Design. Designed for human sustainability.</p>
       <div className="flex gap-8 text-sm font-medium text-slate-500">
-        <a href="#" className="hover:text-ebb-sage">Privacy</a>
+        <a href="#privacy" className="hover:text-ebb-sage">Privacy</a>
         <a href="#" className="hover:text-ebb-sage">Terms</a>
         <a href="mailto:asaltzman0@gmail.com" className="hover:text-ebb-sage">Contact</a>
       </div>
