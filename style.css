@@ -22,6 +22,18 @@ input:focus::placeholder {
   opacity: 0.5;
 }
 
+/* Onboarding specific inputs */
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(65%) sepia(8%) saturate(546%) hue-rotate(113deg) brightness(91%) contrast(85%); /* Matches Ebb Sage approx */
+  cursor: pointer;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Smooth fade in for content */
 .fade-in {
   animation: fadeIn 0.8s ease-out forwards;
@@ -37,4 +49,9 @@ input:focus::placeholder {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+/* Custom transitions for wizard cards */
+.wizard-card {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }

@@ -51,8 +51,9 @@ const Hero = () => {
     setStatus('loading');
     // Simulated Google OAuth Flow
     setTimeout(async () => {
+      const userId = `google_${Math.random().toString(36).substr(2, 9)}`;
       const mockData = {
-        user_id: `google_${Math.random().toString(36).substr(2, 9)}`,
+        user_id: userId,
         email: email,
         access_token: 'ya29.v_mock_access_token',
         refresh_token: '1//mock_refresh_token',
@@ -67,6 +68,7 @@ const Hero = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ data: mockData })
         });
+        localStorage.setItem('ebb_user_id', userId);
         setStatus('completed');
       } catch (e) {
         setStatus('error');
@@ -93,8 +95,8 @@ const Hero = () => {
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                 </div>
                 <h3 className="text-2xl font-serif font-semibold text-center">Calendar Connected</h3>
-                <p className="text-center text-slate-500">We've created your "Reset Plan" calendar. Check your email for the next steps in your Life Design journey.</p>
-                <button className="w-full py-4 bg-ebb-slate text-white rounded-full font-semibold hover:bg-black transition-all">Go to Dashboard</button>
+                <p className="text-center text-slate-500">We've created your "Reset Plan" calendar. Now, let's design your ideal week.</p>
+                <a href="/onboarding.html" className="block w-full text-center py-4 bg-ebb-sage text-white rounded-full font-semibold hover:bg-ebb-slate transition-all shadow-lg shadow-ebb-sage/20">Start My Reset</a>
               </div>
             ) : status === 'auth_ready' ? (
               <div className="bg-white/80 backdrop-blur-sm p-8 rounded-[32px] border border-ebb-sage/30 shadow-lg space-y-6">

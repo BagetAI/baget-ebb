@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ebb | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ebb: {
+                            sage: '#8DA399',
+                            cream: '#F9F7F2',
+                            slate: '#2C3333',
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Lora', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-ebb-cream text-ebb-slate font-sans flex items-center justify-center min-h-screen">
+    <div class="text-center space-y-6">
+        <h1 class="text-4xl font-serif">Analysis in Progress</h1>
+        <p class="text-slate-500 max-w-md">Ebb's AI is currently auditing your calendar and onboarding answers. We'll send your first <strong>Reset Plan</strong> via WhatsApp shortly.</p>
+        <div class="flex justify-center gap-2">
+            <div class="w-3 h-3 bg-ebb-sage rounded-full animate-bounce"></div>
+            <div class="w-3 h-3 bg-ebb-sage rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+            <div class="w-3 h-3 bg-ebb-sage rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+        </div>
+        <a href="/" class="inline-block mt-8 text-ebb-sage font-medium">Return Home</a>
+    </div>
+</body>
+</html>
