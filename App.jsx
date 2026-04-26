@@ -1,22 +1,251 @@
 const { useState, useEffect } = React;
-const { motion, AnimatePresence } = window.Motion || { motion: { div: ({children, ...props}) => <div {...props}>{children}</div>, section: ({children, ...props}) => <section {...props}>{children}</section>, h1: ({children, ...props}) => <h1 {...props}>{children}</h1>, p: ({children, ...props}) => <p {...props}>{children}</p> }, AnimatePresence: ({children}) => <>{children}</> };
+const { motion, AnimatePresence } = window.Motion || { motion: { div: ({children, ...props}) => <div {...props}>{children}</div>, section: ({children, ...props}) => <section {...props}>{children}</section>, h1: ({children, ...props}) => <h1 {...props}>{children}</h1>, p: ({children, ...props}) => <p {...props}>{children}</p>, span: ({children, ...props}) => <span {...props}>{children}</span> }, AnimatePresence: ({children}) => <>{children}</> };
 
-// Import simulated service (in production this would be an API call to our backend)
 const USER_INTEGRATIONS_DB = 'c06cb451-345f-44d1-a6f1-cad8cdfeb79c';
+const WAITLIST_DB = '60ddf56f-99da-4c0e-9667-5a61d524747e';
 
 const Navbar = () => (
   <nav className="flex items-center justify-between py-6 px-6 max-w-7xl mx-auto">
     <div className="flex items-center gap-3">
       <img src="images/minimalist-professional-logo-for-ebb-ab.png" alt="Ebb Logo" className="h-10 w-auto" />
-      <span className="text-2xl font-semibold font-serif tracking-tight">Ebb</span>
+      <span className="text-2xl font-semibold font-serif tracking-tight text-ebb-slate">Ebb</span>
     </div>
     <div className="hidden md:flex items-center gap-8 text-sm font-medium">
+      <a href="#calculator" className="hover:text-ebb-sage transition-colors">Reset Score</a>
       <a href="#how-it-works" className="hover:text-ebb-sage transition-colors">How it works</a>
       <a href="#privacy" className="hover:text-ebb-sage transition-colors">Privacy</a>
       <a href="#login" className="px-5 py-2 rounded-full border border-ebb-sage text-ebb-sage hover:bg-ebb-sage hover:text-white transition-all">Sign In</a>
     </div>
   </nav>
 );
+
+const ResetCalculator = () => {
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState({
+    sleep: 7,
+    work: 45,
+    interests: 5,
+    screen: 240,
+    reactive: 60
+  });
+  const [score, setScore] = useState(null);
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('idle');
+
+  const questions = [
+    {
+      id: 'sleep',
+      label: 'How many hours of sleep do you get on average?',
+      min: 4,
+      max: 12,
+      suffix: 'hours',
+      desc: 'Foundational recovery begins with consistency.'
+    },
+    {
+      id: 'work',
+      label: 'How many hours a week do you work?',
+      min: 20,
+      max: 80,
+      suffix: 'hours',
+      desc: 'Over-scheduling is the primary driver of calendar creep.'
+    },
+    {
+      id: 'interests',
+      label: 'Weekly hours for personal interests?',
+      min: 0,
+      max: 20,
+      suffix: 'hours',
+      desc: 'Time for hobbies is often the first thing "stolen" by work.'
+    },
+    {
+      id: 'screen',
+      label: 'Daily phone screen time?',
+      min: 30,
+      max: 600,
+      suffix: 'min',
+      desc: 'Be honest. Doom-scrolling creates digital fatigue.'
+    },
+    {
+      id: 'reactive',
+      label: 'What % of your day feels "reactive"?',
+      min: 0,
+      max: 100,
+      suffix: '%',
+      desc: 'Meetings, notifications, and unplanned requests.'
+    }
+  ];
+
+  const calculateScore = () => {
+    let s = 100;
+    // Sleep Penalty (8 is target)
+    s -= Math.abs(8 - answers.sleep) * 6;
+    // Work Penalty (40 is standard)
+    if (answers.work > 40) s -= (answers.work - 40) * 1.5;
+    // Interests Bonus/Penalty (10 is target)
+    if (answers.interests < 10) s -= (10 - answers.interests) * 3;
+    // Screen Time Penalty (120 is max healthy)
+    if (answers.screen > 120) s -= (answers.screen - 120) / 10;
+    // Reactive Penalty
+    s -= answers.reactive / 2;
+
+    const final = Math.max(0, Math.min(100, Math.round(s)));
+    setScore(final);
+    setStep(questions.length);
+  };
+
+  const handleNext = () => {
+    if (step < questions.length - 1) {
+      setStep(step + 1);
+    } else {
+      calculateScore();
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus('loading');
+    try {
+      await fetch(`https://baget.ai/api/public/databases/${WAITLIST_DB}/rows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            email,
+            source: 'reset_calculator',
+            name: `Score: ${score}`
+          }
+        })
+      });
+      setStatus('success');
+    } catch (err) {
+      setStatus('error');
+    }
+  };
+
+  return (
+    <section id="calculator" className="py-24 px-6 bg-white overflow-hidden">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-serif font-semibold mb-6 text-ebb-slate">Your Reset Score</h2>
+          <p className="text-xl text-slate-500 max-w-2xl mx-auto">
+            Quantify your schedule's alignment with human sustainability.
+          </p>
+        </div>
+
+        <div className="bg-ebb-cream/30 rounded-[48px] p-8 md:p-16 border border-ebb-cream relative">
+          <AnimatePresence mode="wait">
+            {step < questions.length ? (
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-12"
+              >
+                <div className="space-y-4">
+                  <span className="text-xs font-bold uppercase tracking-[0.3em] text-ebb-sage">Question {step + 1} of 5</span>
+                  <h3 className="text-3xl font-serif font-semibold text-ebb-slate leading-tight">
+                    {questions[step].label}
+                  </h3>
+                  <p className="text-slate-500 italic">{questions[step].desc}</p>
+                </div>
+
+                <div className="space-y-8">
+                  <div className="flex items-center justify-between">
+                    <span className="text-5xl font-serif font-semibold text-ebb-sage">
+                      {answers[questions[step].id]}
+                      <span className="text-xl ml-2 text-slate-400 font-sans">{questions[step].suffix}</span>
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={questions[step].min}
+                    max={questions[step].max}
+                    value={answers[questions[step].id]}
+                    onChange={(e) => setAnswers({ ...answers, [questions[step].id]: parseInt(e.target.value) })}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-ebb-sage"
+                  />
+                  <div className="flex justify-between text-xs font-bold text-slate-300 uppercase tracking-widest">
+                    <span>{questions[step].min}{questions[step].suffix}</span>
+                    <span>{questions[step].max}{questions[step].suffix}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-8">
+                  <button
+                    onClick={handleNext}
+                    className="px-12 py-5 bg-ebb-slate text-white rounded-full font-semibold text-lg hover:bg-ebb-sage transition-all shadow-xl shadow-ebb-slate/10"
+                  >
+                    {step === questions.length - 1 ? 'Calculate Score' : 'Next Step'}
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center space-y-10"
+              >
+                <div className="relative inline-block">
+                  <svg className="w-64 h-64 transform -rotate-90">
+                    <circle cx="128" cy="128" r="110" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-ebb-sage/10" />
+                    <motion.circle 
+                      cx="128" cy="128" r="110" stroke="currentColor" strokeWidth="8" fill="transparent" 
+                      strokeDasharray={691.15}
+                      initial={{ strokeDashoffset: 691.15 }}
+                      animate={{ strokeDashoffset: 691.15 - (691.15 * score) / 100 }}
+                      transition={{ duration: 2, ease: "circOut" }}
+                      className="text-ebb-sage" 
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-8xl font-serif font-semibold tracking-tighter text-ebb-slate">{score}</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Reset Score</span>
+                  </div>
+                </div>
+
+                <div className="space-y-6 max-w-md mx-auto">
+                  <h3 className="text-2xl font-serif font-semibold">
+                    {score > 80 ? "Your life design is strong." : score > 50 ? "You are drifting toward burnout." : "Your schedule is unsustainable."}
+                  </h3>
+                  <p className="text-slate-500 leading-relaxed">
+                    {score > 80 
+                      ? "You've protected your foundations, but there's room to recover 4-6 hours of stolen time." 
+                      : "Calendar creep has taken over. You're losing an average of 11 hours a week to reactive noise."}
+                  </p>
+                </div>
+
+                {status === 'success' ? (
+                  <div className="bg-white p-8 rounded-[32px] border border-ebb-sage shadow-xl shadow-ebb-sage/10">
+                    <p className="text-lg font-medium text-ebb-sage">Reset request received. Check your email for your detailed Audit.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="relative max-w-md mx-auto group">
+                    <input
+                      type="email"
+                      placeholder="Email for your full audit"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-6 pr-44 py-5 bg-white rounded-full border-none shadow-xl shadow-ebb-sage/5 focus:ring-2 focus:ring-ebb-sage outline-none text-lg transition-all"
+                    />
+                    <button
+                      disabled={status === 'loading'}
+                      className="absolute right-2 top-2 bottom-2 px-8 bg-ebb-sage text-white rounded-full font-semibold text-lg hover:bg-ebb-slate transition-all disabled:opacity-50"
+                    >
+                      {status === 'loading' ? 'Sending...' : 'Unlock My Reset'}
+                    </button>
+                  </form>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const Hero = () => {
   const [email, setEmail] = useState('');
@@ -26,7 +255,7 @@ const Hero = () => {
     e.preventDefault();
     setStatus('loading');
     try {
-      const response = await fetch('https://baget.ai/api/public/databases/60ddf56f-99da-4c0e-9667-5a61d524747e/rows', {
+      const response = await fetch(`https://baget.ai/api/public/databases/${WAITLIST_DB}/rows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -115,22 +344,25 @@ const Hero = () => {
                 <p className="text-xs text-center text-slate-400 px-4">Secure OAuth 2.0. No password sharing. Ebb defaults to a read-only view of your primary calendar.</p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="relative group">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-6 pr-44 py-5 bg-white rounded-full border-none shadow-xl shadow-ebb-sage/5 focus:ring-2 focus:ring-ebb-sage outline-none text-lg transition-all"
-                />
-                <button
-                  disabled={status === 'loading'}
-                  className="absolute right-2 top-2 bottom-2 px-8 bg-ebb-sage text-white rounded-full font-semibold text-lg hover:bg-ebb-slate transition-all disabled:opacity-50"
-                >
-                  {status === 'loading' ? 'Joining...' : 'Reset My Week'}
-                </button>
-              </form>
+              <div className="space-y-4">
+                <form onSubmit={handleSubmit} className="relative group">
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-6 pr-44 py-5 bg-white rounded-full border-none shadow-xl shadow-ebb-sage/5 focus:ring-2 focus:ring-ebb-sage outline-none text-lg transition-all"
+                  />
+                  <button
+                    disabled={status === 'loading'}
+                    className="absolute right-2 top-2 bottom-2 px-8 bg-ebb-sage text-white rounded-full font-semibold text-lg hover:bg-ebb-slate transition-all disabled:opacity-50"
+                  >
+                    {status === 'loading' ? 'Joining...' : 'Reset My Week'}
+                  </button>
+                </form>
+                <a href="#calculator" className="block text-center text-ebb-sage font-medium text-sm hover:underline">Or calculate your Reset Score first</a>
+              </div>
             )}
             {status === 'error' && (
               <p className="mt-4 text-red-500 text-sm px-4">Something went wrong. Please try again.</p>
@@ -155,7 +387,7 @@ const Hero = () => {
 };
 
 const Problem = () => (
-  <section className="bg-white py-24 px-6">
+  <section className="bg-[#FAF9F6] py-24 px-6">
     <div className="max-w-7xl mx-auto">
       <div className="text-center mb-16">
         <h2 className="text-4xl font-serif font-semibold mb-6 text-ebb-slate">The Modern Friction</h2>
@@ -172,7 +404,7 @@ const Problem = () => (
             desc: "We lose hours every week to doom-scrolling and schedule creep. Ebb helps you reclaim 10-15 hours of 'stolen time' weekly.",
           }
         ].map((item, i) => (
-          <div key={i} className="p-10 rounded-3xl bg-ebb-cream/50 border border-ebb-cream hover:border-ebb-sage/20 transition-all">
+          <div key={i} className="p-10 rounded-3xl bg-white border border-ebb-cream hover:border-ebb-sage/20 transition-all shadow-sm">
             <h3 className="text-2xl font-serif font-semibold mb-4 text-ebb-slate">{item.title}</h3>
             <p className="text-lg text-slate-600 leading-relaxed">{item.desc}</p>
           </div>
@@ -269,6 +501,7 @@ const App = () => {
     <div className="min-h-screen">
       <Navbar />
       <Hero />
+      <ResetCalculator />
       <Problem />
       <HowItWorks />
       <Feature />
