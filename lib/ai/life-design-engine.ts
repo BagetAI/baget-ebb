@@ -1,11 +1,4 @@
-/**
- * Ebb Life Design Engine
- * 
- * This engine takes user profile data and calendar constraints to generate 
- * a "Reset Week" - a balanced schedule that prioritizes biological foundations.
- */
-
-import { LIFE_DESIGN_SYSTEM_PROMPT } from './prompts';
+import { LIFE_DESIGN_SYSTEM_PROMPT, PLAN_MODIFICATION_PROMPT } from './prompts';
 
 export interface UserProfile {
   wake_time: string;
@@ -38,106 +31,104 @@ export interface ResetPlan {
  * Generates a structured Reset Plan using the AI Life Design agent.
  */
 export async function generateResetPlan(profile: UserProfile, calendarEvents: any[]): Promise<ResetPlan> {
-  // Production Implementation: 
-  // const response = await openai.chat.completions.create({
-  //   model: "gpt-4-turbo",
-  //   messages: [
-  //     { role: "system", content: LIFE_DESIGN_SYSTEM_PROMPT },
-  //     { role: "user", content: JSON.stringify({ profile, calendarEvents }) }
-  //   ],
-  //   response_format: { type: "json_object" }
-  // });
-  // return JSON.parse(response.choices[0].message.content);
+  const apiKey = process.env.OPENAI_API_KEY;
 
-  // For the Prototype: We implement the logic of the AI engine deterministically
-  // to ensure the founder sees a real structure based on their input.
-  
+  if (apiKey) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4-turbo-preview",
+          messages: [
+            { role: "system", content: LIFE_DESIGN_SYSTEM_PROMPT },
+            { role: "user", content: JSON.stringify({ profile, calendarEvents }) }
+          ],
+          response_format: { type: "json_object" }
+        })
+      });
+      const data = await response.json();
+      return JSON.parse(data.choices[0].message.content);
+    } catch (e) {
+      console.error("AI Generation failed, falling back to deterministic engine", e);
+    }
+  }
+
+  // Fallback Deterministic Logic
+  return generateFallbackPlan(profile);
+}
+
+/**
+ * Modifies an existing plan based on user feedback.
+ */
+export async function modifyResetPlan(currentPlan: ResetPlan, userRequest: string, profile: UserProfile): Promise<ResetPlan> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (apiKey) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4-turbo-preview",
+          messages: [
+            { role: "system", content: PLAN_MODIFICATION_PROMPT },
+            { role: "user", content: JSON.stringify({ currentPlan, userRequest, profile }) }
+          ],
+          response_format: { type: "json_object" }
+        })
+      });
+      const data = await response.json();
+      return JSON.parse(data.choices[0].message.content);
+    } catch (e) {
+      console.error("AI Modification failed", e);
+      throw new Error("Failed to modify plan via AI");
+    }
+  }
+
+  // Simple mock modification for local dev without key
+  return {
+    ...currentPlan,
+    score_explanation: `I've noted your request: "${userRequest}". (AI key missing, simulated update applied).`,
+    key_adjustments: [...currentPlan.key_adjustments, "Manual adjustment processed."]
+  };
+}
+
+function generateFallbackPlan(profile: UserProfile): ResetPlan {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const blocks: ResetBlock[] = [];
   
   days.forEach(day => {
-    // 1. Foundation: Sleep
     blocks.push({
       title: 'Sleep & Recovery',
-      start_time: profile.sleep_time,
-      end_time: profile.wake_time,
+      start_time: profile.sleep_time || '23:00',
+      end_time: profile.wake_time || '07:00',
       category: 'Foundation',
       day,
-      description: 'Biological non-negotiable. 8-hour recovery window.'
+      description: 'Biological non-negotiable.'
     });
 
-    // 2. Foundation: Morning Ritual
-    blocks.push({
-      title: 'Morning Ritual',
-      start_time: profile.wake_time,
-      end_time: addMinutes(profile.wake_time, 45),
-      category: 'Foundation',
-      day,
-      description: 'Slow start: Hydration, light, and zero screens.'
-    });
-
-    // 3. Transition: Commute (if work day)
-    const isWorkDay = !['Saturday', 'Sunday'].includes(day);
-    if (isWorkDay) {
-      const workStart = profile.work_hours.split('-')[0].trim() || '09:00';
-      const commuteStart = subtractMinutes(workStart, profile.commute_minutes);
-      
+    if (!['Saturday', 'Sunday'].includes(day)) {
       blocks.push({
-        title: 'Mindful Commute',
-        start_time: commuteStart,
-        end_time: workStart,
-        category: 'Transition',
+        title: 'Morning Ritual',
+        start_time: profile.wake_time || '07:00',
+        end_time: '07:45',
+        category: 'Foundation',
         day,
-        description: 'Audiobook or silence. Transitioning to focus mode.'
-      });
-    }
-
-    // 4. Growth: Personal Interests (Batching them)
-    if (day === 'Saturday' || day === 'Tuesday') {
-      blocks.push({
-        title: `Growth: ${profile.interests.split(',')[0] || 'Personal Interest'}`,
-        start_time: '19:00',
-        end_time: '20:30',
-        category: 'Growth',
-        day,
-        description: 'Deep interest session. No distractions.'
-      });
-    }
-
-    // 5. Domestic: Batching chores
-    if (day === 'Sunday' || day === 'Wednesday') {
-      blocks.push({
-        title: 'Domestic Flow (Batch Chores)',
-        start_time: '17:00',
-        end_time: '18:30',
-        category: 'Domestic',
-        day,
-        description: 'Laundry, meal prep, and space resetting.'
+        description: 'Mindful start.'
       });
     }
   });
 
   return {
     blocks,
-    score_explanation: "This plan maximizes biological foundations by locking your 8-hour sleep window and batching domestic chores to free up weekend recovery.",
-    key_adjustments: [
-      "Consolidated laundry and cleaning to Sunday/Wednesday.",
-      "Fixed 10:30 PM digital sunset to protect deep sleep.",
-      "Integrated 45-minute morning ritual before work commute."
-    ]
+    score_explanation: "Fallback plan generated. Connect OpenAI for high-fidelity life design.",
+    key_adjustments: ["Protected sleep windows."]
   };
-}
-
-function addMinutes(time: string, mins: number): string {
-  const [h, m] = time.split(':').map(Number);
-  const date = new Date();
-  date.setHours(h, m + mins);
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
-
-function subtractMinutes(time: string, mins: number): string {
-  const [h, m] = time.split(':').map(Number);
-  const date = new Date();
-  date.setHours(h, m - mins);
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
