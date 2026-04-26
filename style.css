@@ -8,23 +8,37 @@ body {
 }
 
 /* Custom Serif refinement */
-h1, h2, h3 {
+h1, h2, h3, h4 {
   letter-spacing: -0.01em;
 }
 
-/* Form transition */
-input::placeholder {
-  color: #94A3B8;
-  transition: opacity 0.3s ease;
+/* Dashboard Specific Refinements */
+.card-shadow {
+  box-shadow: 0 10px 30px -10px rgba(141, 163, 153, 0.15);
 }
 
-input:focus::placeholder {
-  opacity: 0.5;
+.rounded-card {
+  border-radius: 24px;
+}
+
+.rounded-btn {
+  border-radius: 40px;
+}
+
+/* Reset Score Animation */
+.score-pulse {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* Onboarding specific inputs */
 input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(65%) sepia(8%) saturate(546%) hue-rotate(113deg) brightness(91%) contrast(85%); /* Matches Ebb Sage approx */
+  filter: invert(65%) sepia(8%) saturate(546%) hue-rotate(113deg) brightness(91%) contrast(85%); 
   cursor: pointer;
 }
 
@@ -34,24 +48,32 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
 }
 
-/* Smooth fade in for content */
-.fade-in {
-  animation: fadeIn 0.8s ease-out forwards;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 /* Glass effect refinement */
 .glass {
   background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* Custom transitions for wizard cards */
-.wizard-card {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+/* Transitions */
+.view-transition {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar Customization for Premium feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F9F7F2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D9B8A9; /* Dusty Rose / Ebb Muted */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8DA399; /* Ebb Sage */
 }
