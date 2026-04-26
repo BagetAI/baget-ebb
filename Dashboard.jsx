@@ -9,60 +9,98 @@ const { motion, AnimatePresence } = window.Motion || {
 };
 
 const USER_PROFILES_DB = 'c9645913-5df8-4132-83b7-f9dc5096e26c';
+const RESET_PLANS_DB = 'a91590e2-5711-48b0-833f-19d7bcbbb29c';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [plan, setPlan] = useState(null);
   const [score, setScore] = useState(0);
   const [view, setView] = useState('dashboard'); // dashboard, proposal, settings
   const [showCalendar, setShowCalendar] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const userId = localStorage.getItem('ebb_user_id');
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
+  const fetchData = async () => {
+    const userId = localStorage.getItem('ebb_user_id');
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const response = await fetch(`https://baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
-        const rows = await response.json();
-        const userProfile = rows.find(r => r.user_id === userId);
+    try {
+      // Fetch Profile
+      const profileResponse = await fetch(`https://baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
+      const profiles = await profileResponse.json();
+      const userProfile = profiles.find(r => r.user_id === userId);
+      
+      if (userProfile) {
+        setProfile(userProfile);
         
-        if (userProfile) {
-          setProfile(userProfile);
-          setTimeout(() => {
-            setScore(82); 
-            setLoading(false);
-          }, 1500);
+        // Fetch existing plan if any
+        const planResponse = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
+        const plans = await planResponse.json();
+        const existingPlan = plans.find(p => p.user_id === userId);
+        
+        if (existingPlan) {
+          setPlan(JSON.parse(existingPlan.plan_json));
+          setScore(82); 
         } else {
-          setLoading(false);
+          // If no plan exists, generate one
+          handleGeneratePlan(userId);
         }
-      } catch (err) {
-        console.error(err);
-        setLoading(false);
       }
-    };
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
 
+  const handleGeneratePlan = async (userId) => {
+    setAnalyzing(true);
+    try {
+      const response = await fetch('/api/generate-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId || localStorage.getItem('ebb_user_id') })
+      });
+      const data = await response.json();
+      if (data.blocks) {
+        setPlan(data);
+        setScore(Math.floor(Math.random() * 15) + 80); // Simulate score based on plan
+      }
+    } catch (err) {
+      console.error('Generation failed:', err);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
-  if (loading) {
+  if (loading || analyzing) {
     return (
       <div className="min-h-screen bg-ebb-cream flex flex-col items-center justify-center p-6 text-center">
         <div className="w-20 h-20 border-3 border-ebb-sage/20 border-t-ebb-sage rounded-full animate-spin mb-8"></div>
-        <h1 className="text-3xl font-serif text-ebb-slate mb-3 italic">Syncing your life...</h1>
-        <p className="text-slate-500 max-w-xs leading-relaxed">Designing a week around your biological foundations and personal recovery goals.</p>
+        <h1 className="text-3xl font-serif text-ebb-slate mb-3 italic">
+          {analyzing ? 'AI Analyzing Your Week...' : 'Syncing your life...'}
+        </h1>
+        <p className="text-slate-500 max-w-xs leading-relaxed">
+          {analyzing 
+            ? 'Our Life Design engine is balancing your sleep, chores, and personal interests.' 
+            : 'Designing a week around your biological foundations and personal recovery goals.'}
+        </p>
       </div>
     );
   }
 
-  const upcomingBlocks = [
-    { title: 'Deep Work: Strategy', time: '09:00 - 11:30', category: 'Focus', color: 'bg-ebb-slate text-white' },
-    { title: 'Commute & Audio Book', time: '17:30 - 18:15', category: 'Transition', color: 'bg-white border-ebb-sage/20 text-ebb-slate' },
-    { title: 'Personal Interest: Reading', time: '20:30 - 21:30', category: 'Growth', color: 'bg-ebb-sage/10 text-ebb-slate border-ebb-sage/10' }
+  // Fallback blocks if plan is missing (though our flow generates it)
+  const displayBlocks = plan?.blocks?.filter(b => b.day === 'Monday').slice(0, 3) || [
+    { title: 'Sleep & Recovery', start_time: '23:00', category: 'Foundation', color: 'bg-ebb-sage/10 text-ebb-slate' },
+    { title: 'Morning Ritual', start_time: '07:00', category: 'Foundation', color: 'bg-ebb-sage/10 text-ebb-slate' }
   ];
 
   const weeklyGoals = [
@@ -119,7 +157,9 @@ const Dashboard = () => {
             </div>
           </div>
           <h2 className="text-3xl font-serif font-semibold leading-tight italic">Intentional Flow</h2>
-          <p className="text-slate-500 mt-3 text-base leading-relaxed max-w-xs mx-auto">You've reclaimed <span className="text-ebb-sage font-semibold">11 hours</span> of stolen time this week. Your foundation is solid.</p>
+          <p className="text-slate-500 mt-3 text-base leading-relaxed max-w-xs mx-auto">
+            {plan?.score_explanation || "Analyzing your life design integrity..."}
+          </p>
         </section>
 
         {/* Weekly Goals Section */}
@@ -164,9 +204,9 @@ const Dashboard = () => {
               animate={{ opacity: 1, height: 'auto' }}
               className="pt-4 border-t border-white/10 space-y-4"
             >
-              <p className="text-sm text-slate-300">Ebb is currently syncing <span className="text-white font-medium">14 recurring blocks</span> to your "Reset Plan" calendar. Your primary work calendar remains untouched.</p>
+              <p className="text-sm text-slate-300">Ebb is currently syncing <span className="text-white font-medium">{plan?.blocks?.length || 0} blocks</span> to your "Reset Plan" calendar. Your primary work calendar remains untouched.</p>
               <div className="flex gap-3">
-                <button className="flex-1 py-3 bg-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-white/20 transition-all">View Blocks</button>
+                <button onClick={() => setView('proposal')} className="flex-1 py-3 bg-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-white/20 transition-all">View Blocks</button>
                 <button className="flex-1 py-3 bg-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-white/20 transition-all">Export Settings</button>
               </div>
             </motion.div>
@@ -180,20 +220,20 @@ const Dashboard = () => {
             <button onClick={() => setView('proposal')} className="text-xs font-bold text-ebb-sage uppercase tracking-widest hover:underline">Full Plan</button>
           </div>
           <div className="space-y-4">
-            {upcomingBlocks.map((block, i) => (
+            {displayBlocks.map((block, i) => (
               <motion.div 
                 key={i}
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + i * 0.1 }}
-                className={`p-6 rounded-[32px] flex items-center justify-between border shadow-sm group hover:scale-[1.02] transition-all cursor-pointer ${block.color}`}
+                className={`p-6 rounded-[32px] flex items-center justify-between border shadow-sm group hover:scale-[1.02] transition-all cursor-pointer bg-white border-ebb-sage/10 text-ebb-slate`}
               >
                 <div>
                   <span className="text-[10px] uppercase font-bold tracking-[0.2em] opacity-50 block mb-1.5">{block.category}</span>
                   <h4 className="font-serif font-semibold text-xl">{block.title}</h4>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-medium opacity-80">{block.time}</span>
+                  <span className="text-sm font-medium opacity-80">{block.start_time} - {block.end_time}</span>
                 </div>
               </motion.div>
             ))}
@@ -240,7 +280,10 @@ const Dashboard = () => {
                        <span className="font-semibold">{isPaused ? 'Resume Assistant' : 'Pause Assistant'}</span>
                        <span>{isPaused ? '▶' : '⏸'}</span>
                      </button>
-                     <button className="w-full p-4 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition-all border-t border-slate-50 mt-1">
+                     <button 
+                        onClick={() => handleGeneratePlan()}
+                        className="w-full p-4 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition-all border-t border-slate-50 mt-1"
+                     >
                        <span className="font-semibold text-ebb-slate">Rerun AI Analysis</span>
                        <span className="opacity-30">🔄</span>
                      </button>
@@ -262,16 +305,6 @@ const Dashboard = () => {
                          <div>
                            <p className="font-semibold">Google Calendar</p>
                            <p className="text-xs text-slate-400">Synced: ebb_reset_492</p>
-                         </div>
-                       </div>
-                       <span className="text-[10px] font-bold text-ebb-sage uppercase tracking-widest">Active</span>
-                     </div>
-                     <div className="flex items-center justify-between border-t border-slate-50 pt-6">
-                       <div className="flex items-center gap-3">
-                         <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl">💬</div>
-                         <div>
-                           <p className="font-semibold">WhatsApp Coach</p>
-                           <p className="text-xs text-slate-400">Daily Rundowns: 8:00 AM</p>
                          </div>
                        </div>
                        <span className="text-[10px] font-bold text-ebb-sage uppercase tracking-widest">Active</span>
@@ -303,18 +336,28 @@ const Dashboard = () => {
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Proposed Adjustments</h3>
                   <div className="space-y-4">
-                    <div className="bg-white p-8 rounded-[40px] border border-ebb-sage/20 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all">
-                      <div className="absolute top-0 right-0 p-4 opacity-10 text-4xl group-hover:opacity-20 transition-all italic font-serif">A</div>
-                      <h4 className="font-bold text-ebb-sage text-xs uppercase mb-3 tracking-widest">Biological Lock</h4>
-                      <p className="font-serif text-2xl mb-2">Sleep 10:30 PM</p>
-                      <p className="text-base text-slate-500 leading-relaxed">Moved from 11:30 PM to resolve the persistent "Stolen Time" fatigue identified in your Monday reflection.</p>
-                    </div>
-                    <div className="bg-white p-8 rounded-[40px] border border-ebb-sage/20 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all">
-                      <div className="absolute top-0 right-0 p-4 opacity-10 text-4xl group-hover:opacity-20 transition-all italic font-serif">B</div>
-                      <h4 className="font-bold text-ebb-sage text-xs uppercase mb-3 tracking-widest">Intentional Chores</h4>
-                      <p className="font-serif text-2xl mb-2">Batch Prep: Tuesday 6 PM</p>
-                      <p className="text-base text-slate-500 leading-relaxed">Consolidating errands to Tuesday frees up 4 hours of pure cognitive recovery for your Saturday interests.</p>
-                    </div>
+                    {plan?.key_adjustments?.map((adj, i) => (
+                      <div key={i} className="bg-white p-8 rounded-[40px] border border-ebb-sage/20 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 text-4xl group-hover:opacity-20 transition-all italic font-serif">{String.fromCharCode(65 + i)}</div>
+                        <h4 className="font-bold text-ebb-sage text-xs uppercase mb-3 tracking-widest">Strategic Shift</h4>
+                        <p className="font-serif text-2xl mb-2">{adj.split(':')[0]}</p>
+                        <p className="text-base text-slate-500 leading-relaxed">{adj.split(':')[1] || adj}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Monday Schedule</h3>
+                  <div className="space-y-3">
+                    {plan?.blocks?.filter(b => b.day === 'Monday').map((block, i) => (
+                      <div key={i} className="flex gap-4 items-center">
+                        <div className="w-20 text-xs font-bold text-slate-400">{block.start_time}</div>
+                        <div className="flex-1 bg-white p-4 rounded-2xl border border-ebb-sage/10 text-sm font-medium">
+                          {block.title}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
