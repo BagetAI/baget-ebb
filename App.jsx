@@ -1,5 +1,5 @@
 const { useState, useEffect } = React;
-const { motion, AnimatePresence } = window.Motion || { motion: { div: ({children, ...props}) => <div {...props}>{children}</div>, section: ({children, ...props}) => <section {...props}>{children}</div>, h1: ({children, ...props}) => <h1 {...props}>{children}</div>, p: ({children, ...props}) => <p {...props}>{children}</div> }, AnimatePresence: ({children}) => <>{children}</> };
+const { motion, AnimatePresence } = window.Motion || { motion: { div: ({children, ...props}) => <div {...props}>{children}</div>, section: ({children, ...props}) => <section {...props}>{children}</section>, h1: ({children, ...props}) => <h1 {...props}>{children}</h1>, p: ({children, ...props}) => <p {...props}>{children}</p> }, AnimatePresence: ({children}) => <>{children}</> };
 
 // Import simulated service (in production this would be an API call to our backend)
 const USER_INTEGRATIONS_DB = 'c06cb451-345f-44d1-a6f1-cad8cdfeb79c';
