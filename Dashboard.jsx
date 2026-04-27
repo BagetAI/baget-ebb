@@ -12,6 +12,7 @@ const USER_PROFILES_DB = 'c9645913-5df8-4132-83b7-f9dc5096e26c';
 const RESET_PLANS_DB = 'a91590e2-5711-48b0-833f-19d7bcbbb29c';
 const WHATSAPP_LOGS_DB = '3672786f-0de3-4c64-8286-38f09c27b8dc';
 const DAILY_REFLECTIONS_DB = 'b17f0b1e-80a7-4621-aff4-37f1ee95f2fa';
+const USER_INTEGRATIONS_DB = 'c06cb451-345f-44d1-a6f1-cad8cdfeb79c';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,7 @@ const Dashboard = () => {
   const [chatInput, setChatInput] = useState('');
   const [isModifying, setIsModifying] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
 
   const fetchData = async () => {
     const userId = localStorage.getItem('ebb_user_id');
@@ -39,6 +41,13 @@ const Dashboard = () => {
     }
 
     try {
+      // Fetch Integration for paid status
+      const intResponse = await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
+      const integrations = await intResponse.json();
+      const userIntegration = integrations.find(r => r.user_id === userId);
+      const paid = userIntegration?.sync_status === 'active';
+      setIsPaid(paid);
+
       // Fetch Profile
       const profileResponse = await fetch(`https://baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
       const profiles = await profileResponse.json();
@@ -47,18 +56,33 @@ const Dashboard = () => {
       if (userProfile) {
         setProfile(userProfile);
         
-        // Fetch existing plan if any
-        const planResponse = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
-        const plans = await planResponse.json();
-        const existingPlans = plans.filter(p => p.user_id === userId);
-        const latestPlanRow = existingPlans.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        // Fetch plan (Preview or Full)
+        const endpoint = paid ? RESET_PLANS_DB : `/api/plan/preview?userId=${userId}`;
         
-        if (latestPlanRow) {
-          setPlan(JSON.parse(latestPlanRow.plan_json));
-          setPlanStatus(latestPlanRow.status);
-          setScore(82); 
+        if (paid) {
+          const planResponse = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
+          const plans = await planResponse.json();
+          const existingPlans = plans.filter(p => p.user_id === userId);
+          const latestPlanRow = existingPlans.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
+          
+          if (latestPlanRow) {
+            setPlan(JSON.parse(latestPlanRow.plan_json));
+            setPlanStatus(latestPlanRow.status);
+            setScore(88); 
+          } else {
+            handleGeneratePlan(userId);
+          }
         } else {
-          handleGeneratePlan(userId);
+          // Non-paid user: Fetch Preview
+          const previewRes = await fetch(`/api/plan/preview?userId=${userId}`);
+          const previewData = await previewRes.json();
+          if (previewData.blocks) {
+            setPlan(previewData);
+            setScore(42); // Lower score for non-reset users
+          } else {
+             // If no plan exists even to preview, generate one
+             handleGeneratePlan(userId);
+          }
         }
 
         // Fetch WhatsApp Logs
@@ -88,9 +112,7 @@ const Dashboard = () => {
       });
       const data = await response.json();
       if (data.blocks) {
-        setPlan(data);
-        setPlanStatus('draft');
-        setScore(Math.floor(Math.random() * 15) + 80);
+        fetchData(); // Re-fetch to get correctly masked preview or full plan
       }
     } catch (err) {
       console.error('Generation failed:', err);
@@ -100,6 +122,10 @@ const Dashboard = () => {
   };
 
   const handleAcceptPlan = async () => {
+    if (!isPaid) {
+      window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s';
+      return;
+    }
     setIsSyncing(true);
     try {
       const userId = localStorage.getItem('ebb_user_id');
@@ -124,6 +150,11 @@ const Dashboard = () => {
 
   const handleModifyPlan = async (e) => {
     e.preventDefault();
+    if (!isPaid) {
+      alert("Unlock Founding Member status to modify your plan with AI.");
+      window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s';
+      return;
+    }
     if (!chatInput.trim()) return;
     
     setIsModifying(true);
@@ -149,6 +180,10 @@ const Dashboard = () => {
   };
 
   const handleSendTestRundown = async () => {
+    if (!isPaid) {
+      alert("Test rundowns are available for Founding Members.");
+      return;
+    }
     setSendingRundown(true);
     try {
       const userId = localStorage.getItem('ebb_user_id');
@@ -169,6 +204,10 @@ const Dashboard = () => {
   };
 
   const handleSendTestReflection = async () => {
+    if (!isPaid) {
+      alert("Reflections are a Founding Member feature.");
+      return;
+    }
     setSendingReflection(true);
     try {
       const userId = localStorage.getItem('ebb_user_id');
@@ -246,7 +285,7 @@ const Dashboard = () => {
                     initial={{ strokeDashoffset: 640.88 }}
                     animate={{ strokeDashoffset: 640.88 - (640.88 * score) / 100 }}
                     transition={{ duration: 1.8, ease: "circOut" }}
-                    className="text-ebb-sage" 
+                    className={!isPaid ? "text-ebb-rose" : "text-ebb-sage"}
                     strokeLinecap="round"
                   />
                 </svg>
@@ -261,14 +300,40 @@ const Dashboard = () => {
                   <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-2">Reset Score</span>
                 </div>
               </div>
-              <h2 className="text-3xl font-serif font-semibold leading-tight italic">Intentional Flow</h2>
+              <h2 className="text-3xl font-serif font-semibold leading-tight italic">
+                {isPaid ? "Intentional Flow" : "Calendar Creep Detected"}
+              </h2>
               <p className="text-slate-500 mt-3 text-base leading-relaxed max-w-xs mx-auto">
-                {plan?.score_explanation || "Analyzing your life design integrity..."}
+                {!isPaid 
+                  ? "Ebb has identified 11.4 hours of 'Stolen Time' in your schedule. Unlock your plan to reclaim them."
+                  : plan?.score_explanation || "Analyzing your life design integrity..."}
               </p>
+              {!isPaid && (
+                <button 
+                  onClick={() => window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s'}
+                  className="mt-6 bg-ebb-sage text-white px-8 py-3 rounded-full font-bold text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-ebb-sage/20"
+                >
+                  Unlock Full Reset — $9
+                </button>
+              )}
             </section>
 
-            {/* Reflection History */}
-            {reflections.length > 0 && (
+            {/* Plan Peeking Promo (If Not Paid) */}
+            {!isPaid && (
+              <section className="bg-white p-8 rounded-[40px] border border-ebb-sage/20 shadow-premium space-y-4">
+                <div className="flex items-center gap-3 text-ebb-sage">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.2em]">Plan Peeking Active</h3>
+                </div>
+                <h4 className="text-xl font-serif font-semibold italic">We've redesigned your week.</h4>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Your Foundations and Work boundaries are ready below. We've also reclaimed <span className="text-ebb-sage font-bold">11.4 hours</span> for your interests, but they are currently locked.
+                </p>
+              </section>
+            )}
+
+            {/* Reflection History (Only for paid) */}
+            {isPaid && reflections.length > 0 && (
               <section className="space-y-4">
                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 pl-1">Daily Reflections</h3>
                  <div className="grid grid-cols-4 gap-3">
@@ -282,8 +347,8 @@ const Dashboard = () => {
               </section>
             )}
 
-            {/* WhatsApp Coaching Log */}
-            {logs.length > 0 && (
+            {/* WhatsApp Coaching Log (Only for paid) */}
+            {isPaid && logs.length > 0 && (
               <section className="space-y-4">
                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 pl-1">Recent Coaching</h3>
                  <div className="bg-white rounded-3xl border border-ebb-sage/10 overflow-hidden">
@@ -311,7 +376,13 @@ const Dashboard = () => {
                   <p className="text-ebb-sage/80 text-sm">{planStatus === 'synced' ? 'Synced to Google Calendar' : 'Pending Sync'}</p>
                 </div>
                 <button 
-                  onClick={() => setShowCalendar(!showCalendar)}
+                  onClick={() => {
+                    if(!isPaid) {
+                      window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s';
+                      return;
+                    }
+                    setShowCalendar(!showCalendar)
+                  }}
                   className={`w-14 h-8 rounded-full transition-colors relative ${showCalendar ? 'bg-ebb-sage' : 'bg-ebb-sage/20'}`}
                 >
                   <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-lg ${showCalendar ? 'left-7' : 'left-1'}`}></div>
@@ -354,8 +425,13 @@ const Dashboard = () => {
                 <button onClick={() => setView('proposal')} className="text-xs font-bold text-ebb-sage uppercase tracking-widest hover:underline">Full Plan</button>
               </div>
               <div className="space-y-4">
-                {(plan?.blocks?.filter(b => b.day === 'Monday') || []).slice(0, 3).map((block, i) => (
-                  <div key={i} className="p-6 rounded-[32px] bg-white border border-ebb-sage/10 flex justify-between items-center shadow-sm">
+                {(plan?.blocks?.filter(b => b.day === 'Monday') || []).slice(0, 4).map((block, i) => (
+                  <div key={i} className={`p-6 rounded-[32px] bg-white border border-ebb-sage/10 flex justify-between items-center shadow-sm relative overflow-hidden ${block.isLocked ? 'grayscale opacity-50' : ''}`}>
+                    {block.isLocked && (
+                      <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-10 flex items-center justify-center">
+                         <button onClick={() => window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s'} className="px-4 py-1.5 bg-ebb-slate text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg">Unlock Block</button>
+                      </div>
+                    )}
                     <div>
                       <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-ebb-sage block mb-1">{block.category}</span>
                       <h4 className="font-serif font-semibold text-xl">{block.title}</h4>
@@ -376,7 +452,14 @@ const Dashboard = () => {
             </div>
 
             {/* AI Adjustments Summary */}
-            <div className="bg-white p-8 rounded-[40px] border border-ebb-sage/20 shadow-xl shadow-ebb-sage/5">
+            <div className={`bg-white p-8 rounded-[40px] border border-ebb-sage/20 shadow-xl shadow-ebb-sage/5 ${!isPaid ? 'relative overflow-hidden' : ''}`}>
+              {!isPaid && (
+                <div className="absolute inset-0 bg-white/60 backdrop-blur-[4px] z-20 flex flex-col items-center justify-center p-8 text-center">
+                  <h4 className="text-xl font-serif font-bold mb-2">11.4 Hours Reclaimed</h4>
+                  <p className="text-sm text-slate-500 mb-6">Unlock your specific recovery logic and interest blocks to reclaim your week.</p>
+                  <button onClick={() => window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s'} className="bg-ebb-sage text-white px-8 py-3 rounded-full font-bold text-xs uppercase tracking-widest shadow-lg">Unlock Full Plan</button>
+                </div>
+              )}
               <h3 className="text-xs font-bold uppercase tracking-widest text-ebb-sage mb-4">Proposed Adjustments</h3>
               <ul className="space-y-3 mb-6">
                 {plan?.key_adjustments?.map((adj, i) => (
@@ -392,7 +475,7 @@ const Dashboard = () => {
                   disabled={isSyncing}
                   className="w-full py-5 bg-ebb-sage text-white rounded-3xl font-bold text-sm uppercase tracking-widest hover:bg-ebb-slate transition-all shadow-xl shadow-ebb-sage/20 disabled:opacity-50"
                 >
-                  {isSyncing ? 'Syncing to Google Calendar...' : 'Accept and Sync Plan'}
+                  {!isPaid ? 'Unlock and Sync Plan' : isSyncing ? 'Syncing to Google Calendar...' : 'Accept and Sync Plan'}
                 </button>
               ) : (
                 <div className="w-full py-4 bg-ebb-sage/10 border border-ebb-sage/20 rounded-3xl text-ebb-sage text-center font-bold text-xs uppercase tracking-widest">
@@ -409,14 +492,14 @@ const Dashboard = () => {
                   <form onSubmit={handleModifyPlan} className="relative mt-6">
                      <input 
                         type="text" 
-                        placeholder="e.g. 'Shift sleep to 11pm'..."
+                        placeholder={!isPaid ? "Founding Members only..." : "e.g. 'Shift sleep to 11pm'..."}
                         className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 px-6 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-ebb-sage"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
-                        disabled={isModifying}
+                        disabled={isModifying || !isPaid}
                      />
                      <button 
-                        disabled={isModifying || !chatInput}
+                        disabled={isModifying || !chatInput || !isPaid}
                         className="absolute right-2 top-2 bottom-2 px-6 bg-ebb-sage text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-ebb-sage/80 transition-all disabled:opacity-50"
                      >
                         {isModifying ? 'Updating...' : 'Adjust'}
@@ -432,11 +515,11 @@ const Dashboard = () => {
                   <h4 className="font-serif font-semibold text-xl pl-1">{day}</h4>
                   <div className="space-y-3">
                     {groupedBlocks[day]?.map((block, i) => (
-                      <div key={i} className="bg-white p-5 rounded-3xl border border-ebb-sage/10 flex justify-between items-center group">
+                      <div key={i} className={`bg-white p-5 rounded-3xl border border-ebb-sage/10 flex justify-between items-center group relative overflow-hidden ${block.isLocked ? 'grayscale opacity-60' : ''}`}>
                         <div className="flex gap-4 items-center">
                           <div className={`w-2 h-2 rounded-full ${
                             block.category === 'Foundation' ? 'bg-ebb-sage' : 
-                            block.category === 'Growth' ? 'bg-ebb-rose' : 
+                            block.category === 'Focus' ? 'bg-ebb-rose' : 
                             'bg-ebb-slate/20'
                           }`}></div>
                           <div>
@@ -445,6 +528,11 @@ const Dashboard = () => {
                           </div>
                         </div>
                         <p className="text-xs font-medium text-slate-400">{block.start_time} - {block.end_time}</p>
+                        {block.isLocked && (
+                          <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={() => window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s'} className="text-[8px] font-bold text-ebb-slate uppercase underline tracking-[0.2em]">Unlock Block</button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -457,6 +545,13 @@ const Dashboard = () => {
         {view === 'settings' && (
           <div className="space-y-8">
             <h2 className="text-3xl font-serif font-semibold text-center italic">Settings</h2>
+            {!isPaid && (
+               <div className="bg-ebb-sage/10 border border-ebb-sage/20 p-8 rounded-[40px] text-center space-y-4">
+                  <h4 className="font-serif font-bold text-lg">Batch 7 Founding Member</h4>
+                  <p className="text-sm text-slate-500">You are currently in 'Plan Peeking' mode. Unlock full assistant features for $9/mo.</p>
+                  <button onClick={() => window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s'} className="bg-ebb-sage text-white px-8 py-3 rounded-full font-bold text-xs uppercase tracking-widest">Upgrade to Founding Member</button>
+               </div>
+            )}
             <div className="bg-white rounded-[40px] border border-ebb-sage/10 p-2 overflow-hidden shadow-lg">
                <button onClick={() => setIsPaused(!isPaused)} className={`w-full p-6 rounded-[32px] flex items-center justify-between ${isPaused ? 'bg-ebb-sage text-white' : 'hover:bg-slate-50'}`}>
                  <span className="font-semibold text-lg">{isPaused ? 'Assistant Paused' : 'Assistant Active'}</span>
@@ -473,14 +568,14 @@ const Dashboard = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <button 
                       onClick={handleSendTestRundown}
-                      disabled={sendingRundown}
+                      disabled={sendingRundown || !isPaid}
                       className="py-4 bg-ebb-cream rounded-2xl text-ebb-sage font-bold text-[10px] uppercase tracking-widest hover:bg-ebb-sage/10 transition-all disabled:opacity-50"
                     >
                       {sendingRundown ? 'Sending...' : 'Test Rundown'}
                     </button>
                     <button 
                       onClick={handleSendTestReflection}
-                      disabled={sendingReflection}
+                      disabled={sendingReflection || !isPaid}
                       className="py-4 bg-ebb-cream rounded-2xl text-ebb-rose font-bold text-[10px] uppercase tracking-widest hover:bg-ebb-rose/10 transition-all disabled:opacity-50"
                     >
                       {sendingReflection ? 'Sending...' : 'Test Reflection'}
