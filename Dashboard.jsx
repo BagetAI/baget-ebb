@@ -11,6 +11,7 @@ const { motion, AnimatePresence } = window.Motion || {
 const USER_PROFILES_DB = 'c9645913-5df8-4132-83b7-f9dc5096e26c';
 const RESET_PLANS_DB = 'a91590e2-5711-48b0-833f-19d7bcbbb29c';
 const WHATSAPP_LOGS_DB = '3672786f-0de3-4c64-8286-38f09c27b8dc';
+const DAILY_REFLECTIONS_DB = 'b17f0b1e-80a7-4621-aff4-37f1ee95f2fa';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -19,11 +20,13 @@ const Dashboard = () => {
   const [plan, setPlan] = useState(null);
   const [planStatus, setPlanStatus] = useState('draft'); // draft, synced, modified
   const [logs, setLogs] = useState([]);
+  const [reflections, setReflections] = useState([]);
   const [score, setScore] = useState(0);
   const [view, setView] = useState('dashboard'); // dashboard, proposal, settings
   const [showCalendar, setShowCalendar] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [sendingRundown, setSendingRundown] = useState(false);
+  const [sendingReflection, setSendingReflection] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isModifying, setIsModifying] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -62,6 +65,11 @@ const Dashboard = () => {
         const logResponse = await fetch(`https://baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`);
         const allLogs = await logResponse.json();
         setLogs(allLogs.filter(l => l.user_id === userId).reverse().slice(0, 3));
+
+        // Fetch Reflections
+        const refResponse = await fetch(`https://baget.ai/api/public/databases/${DAILY_REFLECTIONS_DB}/rows`);
+        const allRefs = await refResponse.json();
+        setReflections(allRefs.filter(r => r.user_id === userId).reverse());
       }
       setLoading(false);
     } catch (err) {
@@ -160,6 +168,26 @@ const Dashboard = () => {
     }
   };
 
+  const handleSendTestReflection = async () => {
+    setSendingReflection(true);
+    try {
+      const userId = localStorage.getItem('ebb_user_id');
+      const res = await fetch('/api/whatsapp/reflection/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (res.ok) {
+        fetchData(); // Refresh logs
+        alert('Test reflection check-in sent!');
+      }
+    } catch (err) {
+      alert('Failed to send test reflection.');
+    } finally {
+      setSendingReflection(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -238,6 +266,21 @@ const Dashboard = () => {
                 {plan?.score_explanation || "Analyzing your life design integrity..."}
               </p>
             </section>
+
+            {/* Reflection History */}
+            {reflections.length > 0 && (
+              <section className="space-y-4">
+                 <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 pl-1">Daily Reflections</h3>
+                 <div className="grid grid-cols-4 gap-3">
+                   {reflections.slice(0, 4).map((ref, i) => (
+                     <div key={i} className="bg-white p-4 rounded-3xl border border-ebb-sage/10 text-center">
+                       <p className="text-[10px] text-slate-400 mb-1">{new Date(ref.date).toLocaleDateString([], { weekday: 'short' })}</p>
+                       <p className={`text-lg font-bold ${ref.overall_score >= 8 ? 'text-ebb-sage' : 'text-ebb-rose'}`}>{ref.overall_score}</p>
+                     </div>
+                   ))}
+                 </div>
+              </section>
+            )}
 
             {/* WhatsApp Coaching Log */}
             {logs.length > 0 && (
@@ -427,12 +470,22 @@ const Dashboard = () => {
                       <span className="text-lg font-serif">{profile?.sleep_time} Digital Sunset</span>
                     </div>
                   </div>
-                  <button 
-                    onClick={handleSendTestRundown}
-                    className="w-full py-4 bg-ebb-cream rounded-2xl text-ebb-sage font-bold text-xs uppercase tracking-widest hover:bg-ebb-sage/10 transition-all"
-                  >
-                    Test WhatsApp Rundown
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={handleSendTestRundown}
+                      disabled={sendingRundown}
+                      className="py-4 bg-ebb-cream rounded-2xl text-ebb-sage font-bold text-[10px] uppercase tracking-widest hover:bg-ebb-sage/10 transition-all disabled:opacity-50"
+                    >
+                      {sendingRundown ? 'Sending...' : 'Test Rundown'}
+                    </button>
+                    <button 
+                      onClick={handleSendTestReflection}
+                      disabled={sendingReflection}
+                      className="py-4 bg-ebb-cream rounded-2xl text-ebb-rose font-bold text-[10px] uppercase tracking-widest hover:bg-ebb-rose/10 transition-all disabled:opacity-50"
+                    >
+                      {sendingReflection ? 'Sending...' : 'Test Reflection'}
+                    </button>
+                  </div>
                </div>
             </div>
             <div className="text-center">
