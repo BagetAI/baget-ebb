@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { 
   refreshGoogleAccessToken, 
-  createGoogleCalendarEvent, 
+  secureGoogleCalendarWrite, 
   mapBlockToGoogleEvent, 
   getNextMonday 
 } from '../../../lib/google-calendar';
@@ -11,7 +11,8 @@ const USER_INTEGRATIONS_DB = 'c06cb451-345f-44d1-a6f1-cad8cdfeb79c';
 const RESET_PLANS_DB = 'a91590e2-5711-48b0-833f-19d7bcbbb29c';
 
 /**
- * Accept Reset Plan API
+ * Accept Reset Plan API - Updated with Secure Write Layer
+ * strictly enforces the 'Never Overwrite' rule and 'Approved-Only' target.
  * POST /api/plan/accept
  * Body: { userId: string }
  */
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     const plan = JSON.parse(latestPlanRow.plan_json);
 
-    // 3. Refresh Google Token
+    // 3. Refresh Google Token (Integrated with process.env.GOOGLE_CLIENT_SECRET in the lib)
     let accessToken;
     try {
       const tokenData = await refreshGoogleAccessToken(integration.refresh_token);
@@ -57,15 +58,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to authenticate with Google. Please re-sign in.' }, { status: 401 });
     }
 
-    // 4. Sync Blocks to Secondary Calendar
-    // We anchor the plan to the next Monday to prevent writing into the middle of the current week.
+    // 4. Sync Blocks using the SECURE Write Layer
     const startAnchor = getNextMonday();
     const syncPromises = plan.blocks.map((block: any) => {
       const googleEvent = mapBlockToGoogleEvent(block, startAnchor);
-      return createGoogleCalendarEvent(accessToken, integration.reset_calendar_id, googleEvent);
+      // The secure layer validates the calendarId against the DB and ensures ONLY creation (no overwrite)
+      return secureGoogleCalendarWrite(accessToken, userId, integration.reset_calendar_id, googleEvent);
     });
 
-    // Execute sync (concurrency limit might be needed in production)
+    // Execute sync
     const results = await Promise.allSettled(syncPromises);
     const failedCount = results.filter(r => r.status === 'rejected').length;
 
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Successfully synced ${results.length - failedCount} blocks to Google Calendar.`,
+      message: `Successfully synced ${results.length - failedCount} blocks to the Ebb Reset Calendar.`,
       failedCount
     });
 

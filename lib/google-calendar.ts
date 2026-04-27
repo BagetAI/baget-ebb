@@ -27,6 +27,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Transition': '8'  // Graphite
 };
 
+const USER_INTEGRATIONS_DB = 'c06cb451-345f-44d1-a6f1-cad8cdfeb79c';
+
 /**
  * Refreshes the Google OAuth Access Token
  */
@@ -79,9 +81,32 @@ export async function fetchGoogleCalendarEvents(accessToken: string) {
 }
 
 /**
- * Creates a single event in the specified Google Calendar
+ * Validates that the calendar ID belongs to the user's 'Reset Plan' calendar.
+ * This is the 'Approved-Only' write-layer check.
  */
-export async function createGoogleCalendarEvent(accessToken: string, calendarId: string, event: GoogleEvent) {
+export async function validateApprovedCalendar(userId: string, calendarId: string): Promise<boolean> {
+  if (!calendarId || calendarId === 'primary') return false;
+
+  const response = await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
+  const integrations = await response.json();
+  const integration = integrations.find((i: any) => i.user_id === userId);
+
+  return integration && integration.reset_calendar_id === calendarId;
+}
+
+/**
+ * SECURE Calendar Write
+ * strictly enforces the 'Never Overwrite' rule and 'Approved-Only' target.
+ */
+export async function secureGoogleCalendarWrite(accessToken: string, userId: string, calendarId: string, event: GoogleEvent) {
+  // 1. Validation: Only write to the specific 'Reset Plan' calendar
+  const isApproved = await validateApprovedCalendar(userId, calendarId);
+  if (!isApproved) {
+    throw new Error('SECURITY_VIOLATION: Attempted to write to an unauthorized calendar.');
+  }
+
+  // 2. Write Operation: Only use POST (create), never PUT/PATCH (modify) for existing events
+  // This ensures no existing user events are modified without explicit confirmation.
   const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
     method: 'POST',
     headers: {
@@ -101,7 +126,6 @@ export async function createGoogleCalendarEvent(accessToken: string, calendarId:
 
 /**
  * Maps an Ebb ResetBlock to a Google Calendar Event
- * Handles date calculation for the 'upcoming week' starting from the next Monday.
  */
 export function mapBlockToGoogleEvent(block: any, nextMondayDate: Date): GoogleEvent {
   const daysMap: Record<string, number> = {
@@ -120,7 +144,6 @@ export function mapBlockToGoogleEvent(block: any, nextMondayDate: Date): GoogleE
   const endDateTime = new Date(eventDate);
   endDateTime.setHours(parseInt(endH), parseInt(endM), 0, 0);
   
-  // Handle overnight blocks (e.g. Sleep 23:00 - 07:00)
   if (endDateTime <= startDateTime) {
     endDateTime.setDate(endDateTime.getDate() + 1);
   }
@@ -130,7 +153,7 @@ export function mapBlockToGoogleEvent(block: any, nextMondayDate: Date): GoogleE
     description: `Ebb Life Design: ${block.category}\n${block.description}`,
     start: {
       dateTime: startDateTime.toISOString(),
-      timeZone: 'UTC' // In production, use user's timezone from Profile
+      timeZone: 'UTC'
     },
     end: {
       dateTime: endDateTime.toISOString(),
@@ -146,7 +169,7 @@ export function mapBlockToGoogleEvent(block: any, nextMondayDate: Date): GoogleE
 export function getNextMonday(): Date {
   const today = new Date();
   const day = today.getDay();
-  const diff = today.getDate() + (day === 0 ? 1 : 8 - day); // day 0 is Sunday
+  const diff = today.getDate() + (day === 0 ? 1 : 8 - day);
   const nextMonday = new Date(today.setDate(diff));
   nextMonday.setHours(0, 0, 0, 0);
   return nextMonday;
