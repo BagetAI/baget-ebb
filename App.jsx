@@ -38,7 +38,6 @@ const ResetCalculator = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Logic to save to Waitlist Signups (60ddf56f-99da-4c0e-9667-5a61d524747e)
-    console.log('Saving lead:', email, calculateScore());
     window.location.href = 'https://buy.stripe.com/test_4gM3cu0UU3jk3XedAn1ZS2s';
   };
 
@@ -159,7 +158,7 @@ const App = () => {
             </div>
           </motion.div>
           <div className="relative">
-             <img src="https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=800" alt="Chaos vs Calm" className="rounded-[40px] shadow-2xl" />
+             <img src="images/high-contrast-editorial-photography-of-a.png" alt="Chaos vs Calm" className="rounded-[40px] shadow-2xl" />
              <div className="absolute -bottom-10 -left-10 bg-white p-6 rounded-[32px] shadow-xl max-w-xs hidden md:block border border-gray-100">
                 <p className="text-[#2C3333] font-bold text-lg mb-1 italic">"Ebb recovered 14 hours of my week that I didn't even know I'd lost."</p>
                 <span className="text-[#8DA399] font-bold">— VP Eng, Batch 6</span>
@@ -192,6 +191,27 @@ const App = () => {
               <p className="text-gray-500 leading-relaxed text-lg">{item.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Value Prop with Image */}
+      <section className="py-32 px-4 bg-[#F9F7F2]">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+          <img src="images/close-up-shot-of-a-premium-smartphone-he.png" alt="Reset Score UI" className="rounded-[40px] shadow-2xl" />
+          <div>
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#2C3333] mb-8 leading-tight">Your life isn't a task list. Stop treating it like one.</h2>
+            <p className="text-xl text-gray-600 mb-8">Ebb is the "Anti-App." We don't want you in a dashboard. We want you living your life. We send your plan via WhatsApp, you reply with a number to accept or adjust. That's it.</p>
+            <ul className="space-y-4">
+              {['8-Hour Sleep Foundation Locked', 'Domestic Chores Batched', 'Growth Interests Protected'].map(t => (
+                <li key={t} className="flex items-center gap-3 text-lg font-bold text-[#2C3333]">
+                  <div className="w-6 h-6 rounded-full bg-[#8DA399] flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  </div>
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
