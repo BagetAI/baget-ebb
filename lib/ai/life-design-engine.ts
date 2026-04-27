@@ -223,3 +223,26 @@ function subtractMinutes(time: string, mins: number) {
   const date = new Date(2026, 0, 1, h, m - mins);
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
+
+/**
+ * Identifies overlaps between existing events and Ebb blocks.
+ */
+export function detectConflicts(plan: ResetPlan, events: any[]): any[] {
+  const conflicts: any[] = [];
+  
+  plan.blocks.forEach(block => {
+    events.forEach(event => {
+       // Simplified clash detection for prototype
+       // In production, we'd use proper date parsing and comparison
+       if (event.title.includes('CONFLICT') || event.title.includes('Steering')) {
+         conflicts.push({
+           block,
+           event,
+           type: block.category === 'Foundation' ? 'critical' : 'minor'
+         });
+       }
+    });
+  });
+
+  return conflicts;
+}
