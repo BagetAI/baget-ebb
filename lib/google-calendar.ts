@@ -1,7 +1,7 @@
 
 /**
  * Ebb Google Calendar Integration Library
- * Handles OAuth token refreshing and event creation for the 'Reset Plan' calendar.
+ * Handles OAuth token refreshing, event fetching, and creation for the 'Reset Plan' calendar.
  */
 
 export interface GoogleEvent {
@@ -48,6 +48,34 @@ export async function refreshGoogleAccessToken(refreshToken: string) {
   }
 
   return await response.json(); // returns { access_token, expires_in, scope, token_type }
+}
+
+/**
+ * Fetches events from the user's primary calendar for the upcoming week.
+ */
+export async function fetchGoogleCalendarEvents(accessToken: string) {
+  const timeMin = new Date().toISOString();
+  const timeMax = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`,
+    {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Failed to fetch events: ${JSON.stringify(error)}`);
+  }
+
+  const data = await response.json();
+  return data.items.map((item: any) => ({
+    title: item.summary,
+    start: item.start.dateTime || item.start.date,
+    end: item.end.dateTime || item.end.date,
+    description: item.description || ''
+  }));
 }
 
 /**

@@ -4,7 +4,7 @@ export interface UserProfile {
   user_id: string;
   wake_time: string;
   sleep_time: string;
-  work_days: string[];
+  work_days: string | string[];
   work_hours: string;
   commute_minutes: number;
   chore_hours_weekly: number;
@@ -42,6 +42,16 @@ export async function generateResetPlan(profile: any, calendarEvents: any[]): Pr
     return generateFallbackPlan(profile);
   }
 
+  // Pre-process profile work_days if it's a string
+  const processedProfile = { ...profile };
+  if (typeof processedProfile.work_days === 'string') {
+    try {
+      processedProfile.work_days = JSON.parse(processedProfile.work_days);
+    } catch (e) {
+      processedProfile.work_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    }
+  }
+
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -55,21 +65,28 @@ export async function generateResetPlan(profile: any, calendarEvents: any[]): Pr
           { role: "system", content: LIFE_DESIGN_SYSTEM_PROMPT },
           { 
             role: "user", 
-            content: `PROFILE: ${JSON.stringify(profile)}\n\nEXISTING CALENDAR: ${JSON.stringify(calendarEvents)}`
+            content: `USER PROFILE:\n${JSON.stringify(processedProfile, null, 2)}\n\nEXISTING CALENDAR EVENTS (CONFLICTS TO RESOLVE):\n${JSON.stringify(calendarEvents, null, 2)}`
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.6
+        temperature: 0.3 // Lower temperature for more consistent scheduling
       })
     });
 
     if (!response.ok) throw new Error("OpenAI API call failed");
 
     const data = await response.json();
-    return JSON.parse(data.choices[0].message.content) as ResetPlan;
+    const result = JSON.parse(data.choices[0].message.content) as ResetPlan;
+    
+    // Safety check: ensure blocks are returned
+    if (!result.blocks || result.blocks.length === 0) {
+      return generateFallbackPlan(processedProfile);
+    }
+    
+    return result;
   } catch (error) {
     console.error("AI Generation failed:", error);
-    return generateFallbackPlan(profile);
+    return generateFallbackPlan(processedProfile);
   }
 }
 
@@ -144,7 +161,8 @@ function generateFallbackPlan(profile: any): ResetPlan {
     });
 
     // 2. Work blocks (simplified)
-    if (!['Saturday', 'Sunday'].includes(day)) {
+    const workDays = Array.isArray(profile.work_days) ? profile.work_days : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    if (workDays.includes(day)) {
       blocks.push({
         title: 'Deep Work: Focus',
         start_time: '09:00',
@@ -176,8 +194,9 @@ function generateFallbackPlan(profile: any): ResetPlan {
     }
 
     // 4. Growth
+    const interest = typeof profile.interests === 'string' ? profile.interests.split(',')[0] : 'Learning';
     blocks.push({
-      title: `Growth: ${profile.interests?.split(',')[0] || 'Learning'}`,
+      title: `Growth: ${interest || 'Learning'}`,
       start_time: '18:00',
       end_time: '19:00',
       category: 'Growth',

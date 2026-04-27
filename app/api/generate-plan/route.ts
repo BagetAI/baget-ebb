@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateResetPlan } from '../../../lib/ai/life-design-engine';
+import { refreshGoogleAccessToken, fetchGoogleCalendarEvents } from '../../../lib/google-calendar';
 
 const USER_PROFILES_DB = 'c9645913-5df8-4132-83b7-f9dc5096e26c';
 const RESET_PLANS_DB = 'a91590e2-5711-48b0-833f-19d7bcbbb29c';
@@ -32,19 +33,28 @@ export async function POST(req: NextRequest) {
     const integrations = await integrationsResponse.json();
     const userIntegration = integrations.find((i: any) => i.user_id === userId);
 
-    // 3. Simulated "High-Conflict" Calendar
-    // This demonstrates how the AI identifies and resolves schedule creep (e.g. late meetings).
-    const simulatedCalendar = [
-      { title: 'Project Steering Committee', start: '09:00', end: '10:30', day: 'Monday' },
-      { title: 'All Hands Meeting', start: '11:00', end: '12:00', day: 'Tuesday' },
-      { title: 'Late Client Call (CONFLICT)', start: '21:30', end: '22:30', day: 'Monday' }, 
-      { title: 'Court Hearing Prep', start: '14:00', end: '17:00', day: 'Wednesday' },
-      { title: 'Urgent Sync', start: '08:00', end: '08:45', day: 'Thursday' }
-    ];
+    let calendarEvents = [];
+    if (userIntegration && userIntegration.refresh_token) {
+      try {
+        const tokenData = await refreshGoogleAccessToken(userIntegration.refresh_token);
+        calendarEvents = await fetchGoogleCalendarEvents(tokenData.access_token);
+      } catch (err) {
+        console.warn('Failed to fetch real calendar events, falling back to empty list.', err);
+      }
+    }
+
+    // 3. If no real events, use simulated data for demonstration
+    if (calendarEvents.length === 0) {
+      calendarEvents = [
+        { title: 'Project Steering Committee', start: '2026-04-27T09:00:00Z', end: '2026-04-27T10:30:00Z' },
+        { title: 'Late Client Call (CONFLICT)', start: '2026-04-27T21:30:00Z', end: '2026-04-27T22:30:00Z' },
+        { title: 'All Hands Meeting', start: '2026-04-28T11:00:00Z', end: '2026-04-28T12:00:00Z' }
+      ];
+    }
 
     // 4. Invoke the AI Life Design Engine
     console.log(`Analyzing life design for: ${userId}`);
-    const resetPlan = await generateResetPlan(userProfile, simulatedCalendar);
+    const resetPlan = await generateResetPlan(userProfile, calendarEvents);
 
     // 5. Persist the new plan version
     const saveResponse = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`, {
@@ -59,10 +69,6 @@ export async function POST(req: NextRequest) {
         }
       })
     });
-
-    if (!saveResponse.ok) {
-      console.warn('Persistence failed, but plan was generated.');
-    }
 
     // 6. Return the design
     return NextResponse.json(resetPlan);
