@@ -5,75 +5,114 @@ html {
 body {
   background-color: #F9F7F2; /* Ebb Cream */
   color: #2C3333; /* Deep Slate */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Serif refinement */
-h1, h2, h3, h4 {
-  letter-spacing: -0.01em;
+/* Typography refinements */
+h1, h2, h3, h4, h5 {
+  letter-spacing: -0.015em;
+  font-feature-settings: "ss01", "ss02", "cv01";
 }
 
-/* Dashboard Specific Refinements */
-.card-shadow {
-  box-shadow: 0 10px 30px -10px rgba(141, 163, 153, 0.15);
+.font-serif {
+  font-feature-settings: "lnum", "onum";
 }
 
-.rounded-card {
-  border-radius: 24px;
+/* Reset Score Circle Animation */
+.score-circle-path {
+  filter: drop-shadow(0 0 8px rgba(141, 163, 153, 0.3));
 }
 
-.rounded-btn {
-  border-radius: 40px;
+/* Custom Range Input - Premium Style */
+input[type="range"] {
+  -webkit-appearance: none;
+  background: transparent;
 }
 
-/* Reset Score Animation */
-.score-pulse {
-  animation: pulse 2s infinite ease-in-out;
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  background: #2C3333; /* Deep Slate */
+  cursor: pointer;
+  margin-top: -10px; /* Centers thumb on the track */
+  box-shadow: 0 4px 10px rgba(44, 51, 51, 0.2);
+  border: 4px solid #fff;
+  transition: all 0.2s ease;
 }
 
-@keyframes pulse {
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #8DA399; /* Ebb Sage */
+  transform: scale(1.1);
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: #E5E7EB;
+  border-radius: 2px;
+}
+
+/* Animation Pulses */
+@keyframes soft-pulse {
   0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.02); opacity: 0.9; }
+  50% { transform: scale(1.05); opacity: 0.8; }
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Onboarding specific inputs */
-input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(65%) sepia(8%) saturate(546%) hue-rotate(113deg) brightness(91%) contrast(85%); 
-  cursor: pointer;
+.pulse-sage {
+  animation: soft-pulse 3s infinite ease-in-out;
 }
 
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+/* Glassmorphism Refinements */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(141, 163, 153, 0.1);
 }
 
-/* Glass effect refinement */
-.glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* Shadow Refinements */
+.shadow-premium {
+  box-shadow: 0 20px 50px -12px rgba(141, 163, 153, 0.12);
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(141, 163, 153, 0.2);
+  color: #2C3333;
+}
+
+/* Layout spacing */
+.section-padding {
+  padding-top: 8rem;
+  padding-bottom: 8rem;
 }
 
 /* Transitions */
-.view-transition {
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+.transition-slow {
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Scrollbar Customization for Premium feel */
-::-webkit-scrollbar {
-  width: 6px;
+/* Onboarding time inputs */
+input[type="time"] {
+  background: transparent;
+  color: inherit;
 }
 
-::-webkit-scrollbar-track {
-  background: #F9F7F2;
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: grayscale(1) opacity(0.5);
+  cursor: pointer;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #D9B8A9; /* Dusty Rose / Ebb Muted */
-  border-radius: 10px;
+/* Card hover effect */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #8DA399; /* Ebb Sage */
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px -12px rgba(141, 163, 153, 0.15);
 }
