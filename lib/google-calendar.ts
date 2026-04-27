@@ -1,0 +1,125 @@
+
+/**
+ * Ebb Google Calendar Integration Library
+ * Handles OAuth token refreshing and event creation for the 'Reset Plan' calendar.
+ */
+
+export interface GoogleEvent {
+  summary: string;
+  description: string;
+  start: {
+    dateTime: string;
+    timeZone?: string;
+  };
+  end: {
+    dateTime: string;
+    timeZone?: string;
+  };
+  colorId?: string;
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Foundation': '11', // Graphite
+  'Focus': '5',      // Banana
+  'Domestic': '2',   // Sage
+  'Recovery': '1',   // Lavender
+  'Growth': '10',    // Basil
+  'Transition': '8'  // Graphite
+};
+
+/**
+ * Refreshes the Google OAuth Access Token
+ */
+export async function refreshGoogleAccessToken(refreshToken: string) {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID || '',
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Failed to refresh token: ${JSON.stringify(error)}`);
+  }
+
+  return await response.json(); // returns { access_token, expires_in, scope, token_type }
+}
+
+/**
+ * Creates a single event in the specified Google Calendar
+ */
+export async function createGoogleCalendarEvent(accessToken: string, calendarId: string, event: GoogleEvent) {
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(event),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Failed to create event: ${JSON.stringify(error)}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Maps an Ebb ResetBlock to a Google Calendar Event
+ * Handles date calculation for the 'upcoming week' starting from the next Monday.
+ */
+export function mapBlockToGoogleEvent(block: any, nextMondayDate: Date): GoogleEvent {
+  const daysMap: Record<string, number> = {
+    'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6
+  };
+
+  const eventDate = new Date(nextMondayDate);
+  eventDate.setDate(nextMondayDate.getDate() + daysMap[block.day]);
+
+  const [startH, startM] = block.start_time.split(':');
+  const [endH, endM] = block.end_time.split(':');
+
+  const startDateTime = new Date(eventDate);
+  startDateTime.setHours(parseInt(startH), parseInt(startM), 0, 0);
+
+  const endDateTime = new Date(eventDate);
+  endDateTime.setHours(parseInt(endH), parseInt(endM), 0, 0);
+  
+  // Handle overnight blocks (e.g. Sleep 23:00 - 07:00)
+  if (endDateTime <= startDateTime) {
+    endDateTime.setDate(endDateTime.getDate() + 1);
+  }
+
+  return {
+    summary: block.title,
+    description: `Ebb Life Design: ${block.category}\n${block.description}`,
+    start: {
+      dateTime: startDateTime.toISOString(),
+      timeZone: 'UTC' // In production, use user's timezone from Profile
+    },
+    end: {
+      dateTime: endDateTime.toISOString(),
+      timeZone: 'UTC'
+    },
+    colorId: CATEGORY_COLORS[block.category] || '1'
+  };
+}
+
+/**
+ * Calculates the date of the next Monday to anchor the Reset Plan.
+ */
+export function getNextMonday(): Date {
+  const today = new Date();
+  const day = today.getDay();
+  const diff = today.getDate() + (day === 0 ? 1 : 8 - day); // day 0 is Sunday
+  const nextMonday = new Date(today.setDate(diff));
+  nextMonday.setHours(0, 0, 0, 0);
+  return nextMonday;
+}

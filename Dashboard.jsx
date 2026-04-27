@@ -17,6 +17,7 @@ const Dashboard = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [profile, setProfile] = useState(null);
   const [plan, setPlan] = useState(null);
+  const [planStatus, setPlanStatus] = useState('draft'); // draft, synced, modified
   const [logs, setLogs] = useState([]);
   const [score, setScore] = useState(0);
   const [view, setView] = useState('dashboard'); // dashboard, proposal, settings
@@ -25,6 +26,7 @@ const Dashboard = () => {
   const [sendingRundown, setSendingRundown] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isModifying, setIsModifying] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchData = async () => {
     const userId = localStorage.getItem('ebb_user_id');
@@ -46,10 +48,11 @@ const Dashboard = () => {
         const planResponse = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
         const plans = await planResponse.json();
         const existingPlans = plans.filter(p => p.user_id === userId);
-        const latestPlan = existingPlans.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        const latestPlanRow = existingPlans.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
         
-        if (latestPlan) {
-          setPlan(JSON.parse(latestPlan.plan_json));
+        if (latestPlanRow) {
+          setPlan(JSON.parse(latestPlanRow.plan_json));
+          setPlanStatus(latestPlanRow.status);
           setScore(82); 
         } else {
           handleGeneratePlan(userId);
@@ -78,12 +81,36 @@ const Dashboard = () => {
       const data = await response.json();
       if (data.blocks) {
         setPlan(data);
+        setPlanStatus('draft');
         setScore(Math.floor(Math.random() * 15) + 80);
       }
     } catch (err) {
       console.error('Generation failed:', err);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleAcceptPlan = async () => {
+    setIsSyncing(true);
+    try {
+      const userId = localStorage.getItem('ebb_user_id');
+      const response = await fetch('/api/plan/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPlanStatus('synced');
+        alert(data.message);
+      } else {
+        alert(data.error || 'Failed to sync calendar.');
+      }
+    } catch (err) {
+      alert('Network error while syncing plan.');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -102,6 +129,7 @@ const Dashboard = () => {
       const updatedPlan = await res.json();
       if (updatedPlan.blocks) {
         setPlan(updatedPlan);
+        setPlanStatus('modified');
         setChatInput('');
         alert('Plan adjusted based on your feedback.');
       }
@@ -237,7 +265,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between relative z-10">
                 <div>
                   <h3 className="text-xl font-serif font-semibold mb-1 italic">Reset Plan</h3>
-                  <p className="text-ebb-sage/80 text-sm">Active on Google Calendar</p>
+                  <p className="text-ebb-sage/80 text-sm">{planStatus === 'synced' ? 'Synced to Google Calendar' : 'Pending Sync'}</p>
                 </div>
                 <button 
                   onClick={() => setShowCalendar(!showCalendar)}
@@ -263,6 +291,15 @@ const Dashboard = () => {
                       {sendingRundown ? 'Sending...' : 'Test Rundown'}
                     </button>
                   </div>
+                  {planStatus !== 'synced' && (
+                    <button 
+                      onClick={handleAcceptPlan}
+                      disabled={isSyncing}
+                      className="w-full py-4 bg-white text-ebb-slate rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-ebb-cream transition-all disabled:opacity-50"
+                    >
+                      {isSyncing ? 'Syncing to Google...' : 'Accept and Sync Plan'}
+                    </button>
+                  )}
                 </motion.div>
               )}
             </section>
@@ -298,7 +335,7 @@ const Dashboard = () => {
             {/* AI Adjustments Summary */}
             <div className="bg-white p-8 rounded-[40px] border border-ebb-sage/20 shadow-xl shadow-ebb-sage/5">
               <h3 className="text-xs font-bold uppercase tracking-widest text-ebb-sage mb-4">Proposed Adjustments</h3>
-              <ul className="space-y-3">
+              <ul className="space-y-3 mb-6">
                 {plan?.key_adjustments?.map((adj, i) => (
                   <li key={i} className="flex gap-3 text-sm text-slate-600">
                     <span className="text-ebb-sage">●</span>
@@ -306,6 +343,19 @@ const Dashboard = () => {
                   </li>
                 ))}
               </ul>
+              {planStatus !== 'synced' ? (
+                <button 
+                  onClick={handleAcceptPlan}
+                  disabled={isSyncing}
+                  className="w-full py-5 bg-ebb-sage text-white rounded-3xl font-bold text-sm uppercase tracking-widest hover:bg-ebb-slate transition-all shadow-xl shadow-ebb-sage/20 disabled:opacity-50"
+                >
+                  {isSyncing ? 'Syncing to Google Calendar...' : 'Accept and Sync Plan'}
+                </button>
+              ) : (
+                <div className="w-full py-4 bg-ebb-sage/10 border border-ebb-sage/20 rounded-3xl text-ebb-sage text-center font-bold text-xs uppercase tracking-widest">
+                  Plan Synced to Google Calendar
+                </div>
+              )}
             </div>
 
             {/* Chat Modification Interface */}
