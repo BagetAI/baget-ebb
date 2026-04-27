@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const userProfile = profiles.find((p: any) => p.user_id === userId);
 
     if (!userProfile) {
-      return NextResponse.json({ error: 'Life Design profile not found. Please complete onboarding first.' }, { status: 404 });
+      return NextResponse.json({ error: 'Life Design profile not found.' }, { status: 404 });
     }
 
     // 2. Fetch User Integration (Google OAuth metadata)
@@ -32,23 +32,21 @@ export async function POST(req: NextRequest) {
     const integrations = await integrationsResponse.json();
     const userIntegration = integrations.find((i: any) => i.user_id === userId);
 
-    // 3. Fetch/Simulate Calendar Data
-    // In a production app, we would use userIntegration.access_token to fetch real Google events.
-    // For this beta cohort, we simulate a "High-Conflict" schedule to demonstrate the AI's logic.
+    // 3. Simulated "High-Conflict" Calendar
+    // This demonstrates how the AI identifies and resolves schedule creep (e.g. late meetings).
     const simulatedCalendar = [
       { title: 'Project Steering Committee', start: '09:00', end: '10:30', day: 'Monday' },
       { title: 'All Hands Meeting', start: '11:00', end: '12:00', day: 'Tuesday' },
-      { title: 'Late Client Call', start: '21:00', end: '22:00', day: 'Monday' }, // This violates sleep foundation
-      { title: 'Court Hearing (Mock)', start: '14:00', end: '17:00', day: 'Wednesday' },
-      { title: 'Board Prep', start: '19:00', end: '21:00', day: 'Thursday' }
+      { title: 'Late Client Call (CONFLICT)', start: '21:30', end: '22:30', day: 'Monday' }, 
+      { title: 'Court Hearing Prep', start: '14:00', end: '17:00', day: 'Wednesday' },
+      { title: 'Urgent Sync', start: '08:00', end: '08:45', day: 'Thursday' }
     ];
 
-    // 4. Invoke the Life Design Engine (AI-powered)
-    console.log(`Triggering Life Design Engine for User: ${userId}`);
+    // 4. Invoke the AI Life Design Engine
+    console.log(`Analyzing life design for: ${userId}`);
     const resetPlan = await generateResetPlan(userProfile, simulatedCalendar);
 
-    // 5. Persist the plan to the database
-    // We store the JSON string to enable versioning and historical audits of life design shifts.
+    // 5. Persist the new plan version
     const saveResponse = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -63,17 +61,14 @@ export async function POST(req: NextRequest) {
     });
 
     if (!saveResponse.ok) {
-      console.warn('Reset Plan generated but failed to persist to database.');
+      console.warn('Persistence failed, but plan was generated.');
     }
 
-    // 6. Return the structured 7-day proposal
+    // 6. Return the design
     return NextResponse.json(resetPlan);
 
   } catch (error: any) {
-    console.error('CRITICAL: Reset Plan Generation Error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to generate Reset Plan.', 
-      details: error.message 
-    }, { status: 500 });
+    console.error('Reset Plan Generation Failure:', error);
+    return NextResponse.json({ error: 'System error during life design analysis.' }, { status: 500 });
   }
 }

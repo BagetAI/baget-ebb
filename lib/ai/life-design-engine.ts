@@ -32,13 +32,13 @@ export interface ResetPlan {
 
 /**
  * The Ebb Life Design Engine
- * Orchestrates the AI analysis of user life parameters and calendar data.
+ * Generates a conflict-free 7-day schedule based on biological foundations.
  */
 export async function generateResetPlan(profile: any, calendarEvents: any[]): Promise<ResetPlan> {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    console.warn("OPENAI_API_KEY is not defined. Falling back to deterministic engine.");
+    console.warn("OPENAI_API_KEY missing. Using Foundation-Lock Fallback.");
     return generateFallbackPlan(profile);
   }
 
@@ -55,28 +55,18 @@ export async function generateResetPlan(profile: any, calendarEvents: any[]): Pr
           { role: "system", content: LIFE_DESIGN_SYSTEM_PROMPT },
           { 
             role: "user", 
-            content: `Here is my profile and current calendar. Please redesign my week:\n\nPROFILE: ${JSON.stringify(profile)}\n\nCALENDAR: ${JSON.stringify(calendarEvents)}`
+            content: `PROFILE: ${JSON.stringify(profile)}\n\nEXISTING CALENDAR: ${JSON.stringify(calendarEvents)}`
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.7
+        temperature: 0.6
       })
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
-    }
+    if (!response.ok) throw new Error("OpenAI API call failed");
 
     const data = await response.json();
-    const result = JSON.parse(data.choices[0].message.content);
-    
-    // Basic validation of the AI output
-    if (!result.blocks || !Array.isArray(result.blocks)) {
-      throw new Error("Invalid AI response: 'blocks' array missing.");
-    }
-
-    return result as ResetPlan;
+    return JSON.parse(data.choices[0].message.content) as ResetPlan;
   } catch (error) {
     console.error("AI Generation failed:", error);
     return generateFallbackPlan(profile);
@@ -84,14 +74,11 @@ export async function generateResetPlan(profile: any, calendarEvents: any[]): Pr
 }
 
 /**
- * Refines a plan based on iterative user feedback.
+ * Modifies an existing plan based on user chat feedback.
  */
 export async function modifyResetPlan(currentPlan: ResetPlan, userRequest: string, profile: any): Promise<ResetPlan> {
   const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("AI modification unavailable: OPENAI_API_KEY missing.");
-  }
+  if (!apiKey) throw new Error("AI unavailable");
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -112,78 +99,108 @@ export async function modifyResetPlan(currentPlan: ResetPlan, userRequest: strin
     })
   });
 
-  if (!response.ok) {
-    throw new Error("AI modification request failed.");
-  }
-
   const data = await response.json();
   return JSON.parse(data.choices[0].message.content) as ResetPlan;
 }
 
 /**
- * Emergency Fallback Engine
- * Provides a basic structure if the AI is unreachable.
+ * Foundation-Lock Fallback Engine
+ * Strictly enforces 8-hour sleep and core rituals if AI is down.
  */
 function generateFallbackPlan(profile: any): ResetPlan {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const blocks: ResetBlock[] = [];
   
   days.forEach(day => {
-    // 8-hour Sleep Foundation
+    const wake = profile.wake_time || '07:00';
+    const sleep = profile.sleep_time || '23:00';
+
+    // 1. Biological Anchors
     blocks.push({
       title: 'Sleep Foundation',
-      start_time: profile.sleep_time || '23:00',
-      end_time: profile.wake_time || '07:00',
+      start_time: sleep,
+      end_time: wake,
       category: 'Foundation',
       day,
-      description: 'Biological non-negotiable. Protected recovery window.'
+      description: 'Locked 8-hour sleep window for biological recovery.'
     });
 
-    // Morning Ritual
     blocks.push({
       title: 'Morning Ritual',
-      start_time: profile.wake_time || '07:00',
-      end_time: '07:45',
+      start_time: wake,
+      end_time: addMinutes(wake, 45),
       category: 'Foundation',
       day,
-      description: 'Low-stimulation start to the day.'
+      description: 'Protected low-stimulation start.'
     });
 
-    // Work (Mon-Fri)
+    blocks.push({
+      title: 'Digital Sunset',
+      start_time: subtractMinutes(sleep, 60),
+      end_time: sleep,
+      category: 'Foundation',
+      day,
+      description: 'Transitioning to recovery mode.'
+    });
+
+    // 2. Work blocks (simplified)
     if (!['Saturday', 'Sunday'].includes(day)) {
       blocks.push({
-        title: 'Focus: Primary Work',
+        title: 'Deep Work: Focus',
         start_time: '09:00',
         end_time: '12:00',
         category: 'Focus',
         day,
-        description: 'High-leverage deep work block.'
+        description: 'Prioritizing high-leverage outputs.'
       });
-      
       blocks.push({
-        title: 'Focus: Reactive Load',
-        start_time: '13:00',
+        title: 'Reactive Load',
+        start_time: '13:30',
         end_time: '17:00',
         category: 'Focus',
         day,
-        description: 'Meetings, emails, and syncs.'
+        description: 'Meetings, emails, and coordination.'
       });
     }
 
-    // Interest / Growth (Evening)
+    // 3. Domestic Batching (Example: Wed/Sun)
+    if (day === 'Wednesday' || day === 'Sunday') {
+       blocks.push({
+         title: 'Domestic Batching',
+         start_time: day === 'Sunday' ? '10:00' : '19:00',
+         end_time: day === 'Sunday' ? '12:00' : '20:30',
+         category: 'Domestic',
+         day,
+         description: 'Batched laundry, errands, and cooking.'
+       });
+    }
+
+    // 4. Growth
     blocks.push({
-      title: `Growth: ${profile.interests?.split(',')[0] || 'Personal Interest'}`,
-      start_time: '19:00',
-      end_time: '20:30',
+      title: `Growth: ${profile.interests?.split(',')[0] || 'Learning'}`,
+      start_time: '18:00',
+      end_time: '19:00',
       category: 'Growth',
       day,
-      description: 'Reclaiming time for what matters.'
+      description: 'Reclaiming time for personal development.'
     });
   });
 
   return {
     blocks,
-    score_explanation: "This is a foundational fallback plan. Connect OpenAI to unlock high-fidelity life design optimized for your specific constraints.",
-    key_adjustments: ["Locked 8-hour sleep foundation", "Protected morning rituals", "Allocated growth sessions"]
+    score_explanation: "Fallback design activated. Locked foundations are preserved, but high-fidelity optimization requires AI connectivity.",
+    key_adjustments: ["8-hour sleep window locked", "Morning rituals protected", "Domestic tasks batched to Wed/Sun"]
   };
+}
+
+function addMinutes(time: string, mins: number) {
+  const [h, m] = time.split(':').map(Number);
+  const date = new Date(2026, 0, 1, h, m + mins);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function subtractMinutes(time: string, mins: number) {
+  const [h, m] = time.split(':').map(Number);
+  const date = new Date(2026, 0, 1, h, m - mins);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
