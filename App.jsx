@@ -1,5 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+const { useState, useEffect } = React;
+const { motion, AnimatePresence } = window.Motion || {
+  motion: {
+    div: ({children, ...props}) => <div {...props}>{children}</div>,
+    span: ({children, ...props}) => <span {...props}>{children}</span>,
+    button: ({children, ...props}) => <button {...props}>{children}</button>
+  },
+  AnimatePresence: ({children}) => <>{children}</>
+};
 
 const EBB_SAGE = '#8DA399';
 const EBB_CREAM = '#F9F7F2';
@@ -238,4 +245,4 @@ const App = () => {
   );
 };
 
-export default App;
+window.App = App;
