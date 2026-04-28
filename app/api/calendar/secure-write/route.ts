@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Fetch Integration metadata for identity verification and token refresh
-    const integrationsRes = await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
+    const integrationsRes = await fetch(`https://app.baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
     const integrations = await integrationsRes.json();
     const integration = integrations.find((i: any) => i.user_id === userId);
 

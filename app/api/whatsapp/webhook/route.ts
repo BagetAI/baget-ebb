@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const phoneNumber = from.replace('whatsapp:', '');
 
     // 1. Find User by Phone
-    const profileResponse = await fetch(`https://baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
+    const profileResponse = await fetch(`https://app.baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
     const profiles = await profileResponse.json();
     const userProfile = profiles.find((p: any) => p.whatsapp === phoneNumber);
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const userId = userProfile.user_id;
 
     // 2. Log Message
-    await fetch(`https://baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`, {
+    await fetch(`https://app.baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     });
 
     // 3. Determine Context from latest Outbound
-    const logsRes = await fetch(`https://baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`);
+    const logsRes = await fetch(`https://app.baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`);
     const allLogs = await logsRes.json();
     const latestOutbound = allLogs
       .filter((l: any) => l.user_id === userId && l.direction === 'outbound')
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       else if (responseId === '3') score = 0;
 
       // Save Daily Reflection Score
-      await fetch(`https://baget.ai/api/public/databases/${DAILY_REFLECTIONS_DB}/rows`, {
+      await fetch(`https://app.baget.ai/api/public/databases/${DAILY_REFLECTIONS_DB}/rows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

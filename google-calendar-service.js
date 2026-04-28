@@ -48,7 +48,7 @@ export const GoogleCalendarService = {
    */
   async saveIntegration(data) {
     try {
-      const response = await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`, {
+      const response = await fetch(`https://app.baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

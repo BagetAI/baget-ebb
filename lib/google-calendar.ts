@@ -87,7 +87,7 @@ export async function fetchGoogleCalendarEvents(accessToken: string) {
 export async function validateApprovedCalendar(userId: string, calendarId: string): Promise<boolean> {
   if (!calendarId || calendarId === 'primary') return false;
 
-  const response = await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
+  const response = await fetch(`https://app.baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
   const integrations = await response.json();
   const integration = integrations.find((i: any) => i.user_id === userId);
 

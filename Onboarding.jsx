@@ -52,7 +52,7 @@ const Onboarding = () => {
       // In a real app, we would get the user_id from the session/OAuth state
       const userId = localStorage.getItem('ebb_user_id') || `user_${Math.random().toString(36).substr(2, 9)}`;
       
-      const response = await fetch(`https://baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`, {
+      const response = await fetch(`https://app.baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

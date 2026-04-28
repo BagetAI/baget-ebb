@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
 
     // 1. Fetch Profile and Latest Plan
     const [profileRes, planRes] = await Promise.all([
-      fetch(`https://baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`),
-      fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`)
+      fetch(`https://app.baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`),
+      fetch(`https://app.baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`)
     ]);
 
     const profiles = await profileRes.json();
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     console.log(`Sending WhatsApp to ${profile.whatsapp}: ${message}`);
 
     // LOG the outbound message
-    await fetch(`https://baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`, {
+    await fetch(`https://app.baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

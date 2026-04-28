@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 1. Fetch Latest Reset Plan
-    const plansRes = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
+    const plansRes = await fetch(`https://app.baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
     const plans = await plansRes.json();
     const latestPlanRow = plans
       .filter((p: any) => p.user_id === userId)

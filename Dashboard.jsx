@@ -44,14 +44,14 @@ const Dashboard = () => {
 
     try {
       // Fetch Integration for paid status
-      const intResponse = await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
+      const intResponse = await fetch(`https://app.baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
       const integrations = await intResponse.json();
       const userIntegration = integrations.find(r => r.user_id === userId);
       const paid = userIntegration?.sync_status === 'active';
       setIsPaid(paid || true); // Default to true for demo purposes if needed, but let's keep logic
 
       // Fetch Profile
-      const profileResponse = await fetch(`https://baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
+      const profileResponse = await fetch(`https://app.baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
       const profiles = await profileResponse.json();
       const userProfile = profiles.find(r => r.user_id === userId);
       
@@ -59,7 +59,7 @@ const Dashboard = () => {
         setProfile(userProfile);
         
         // Fetch plan
-        const planResponse = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
+        const planResponse = await fetch(`https://app.baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
         const plans = await planResponse.json();
         const existingPlans = plans.filter(p => p.user_id === userId);
         const latestPlanRow = existingPlans.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
@@ -81,12 +81,12 @@ const Dashboard = () => {
         }
 
         // Fetch WhatsApp Logs
-        const logResponse = await fetch(`https://baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`);
+        const logResponse = await fetch(`https://app.baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`);
         const allLogs = await logResponse.json();
         setLogs(allLogs.filter(l => l.user_id === userId).reverse().slice(0, 3));
 
         // Fetch Reflections
-        const refResponse = await fetch(`https://baget.ai/api/public/databases/${DAILY_REFLECTIONS_DB}/rows`);
+        const refResponse = await fetch(`https://app.baget.ai/api/public/databases/${DAILY_REFLECTIONS_DB}/rows`);
         const allRefs = await refResponse.json();
         setReflections(allRefs.filter(r => r.user_id === userId).reverse());
       } else {

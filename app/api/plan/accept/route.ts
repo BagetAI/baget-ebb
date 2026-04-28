@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Fetch User Integration (Tokens + Calendar ID)
-    const integrationsRes = await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
+    const integrationsRes = await fetch(`https://app.baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
     const integrations = await integrationsRes.json();
     const integration = integrations.find((i: any) => i.user_id === userId);
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Fetch Latest Reset Plan
-    const plansRes = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
+    const plansRes = await fetch(`https://app.baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`);
     const plans = await plansRes.json();
     const latestPlanRow = plans
       .filter((p: any) => p.user_id === userId)
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const failedCount = results.filter(r => r.status === 'rejected').length;
 
     // 5. Update Plan Status
-    await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`, {
+    await fetch(`https://app.baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

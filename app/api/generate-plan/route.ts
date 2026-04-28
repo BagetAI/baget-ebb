@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Fetch User Profile
-    const profileResponse = await fetch(`https://baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
+    const profileResponse = await fetch(`https://app.baget.ai/api/public/databases/${USER_PROFILES_DB}/rows`);
     const profiles = await profileResponse.json();
     const userProfile = profiles.find((p: any) => p.user_id === userId);
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Fetch User Integration (Google OAuth metadata)
-    const integrationsResponse = await fetch(`https://baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
+    const integrationsResponse = await fetch(`https://app.baget.ai/api/public/databases/${USER_INTEGRATIONS_DB}/rows`);
     const integrations = await integrationsResponse.json();
     const userIntegration = integrations.find((i: any) => i.user_id === userId);
 
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const resetPlan = await generateResetPlan(userProfile, calendarEvents);
 
     // 5. Persist the new plan version
-    const saveResponse = await fetch(`https://baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`, {
+    const saveResponse = await fetch(`https://app.baget.ai/api/public/databases/${RESET_PLANS_DB}/rows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
