@@ -1,3 +1,4 @@
+
 const { useState, useEffect, useRef } = React;
 const { motion, AnimatePresence } = window.Motion || { 
   motion: { 
@@ -26,6 +27,7 @@ const Dashboard = () => {
   const [view, setView] = useState('dashboard'); 
   const [isPaused, setIsPaused] = useState(false);
   const [sendingRundown, setSendingRundown] = useState(false);
+  const [sendingConflict, setSendingConflict] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isModifying, setIsModifying] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -38,7 +40,6 @@ const Dashboard = () => {
   // Conflict Resolver State
   const [activeConflict, setActiveConflict] = useState(null);
   const [resolvingConflict, setResolvingConflict] = useState(false);
-  const [resolutionProposal, setResolutionProposal] = useState(null);
 
   const fetchData = async () => {
     const userId = localStorage.getItem('ebb_user_id') || 'user_demo_777';
@@ -67,7 +68,7 @@ const Dashboard = () => {
         const planJson = await planResponse.json();
         const plans = planJson.rows || [];
         const existingPlans = plans.filter(p => p.user_id === userId);
-        const latestPlanRow = existingPlans.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        const latestPlanRow = existingPlans.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
         
         if (latestPlanRow) {
           setPlan(JSON.parse(latestPlanRow.plan_json));
@@ -88,7 +89,7 @@ const Dashboard = () => {
         const logResponse = await fetch(`https://app.baget.ai/api/public/databases/${WHATSAPP_LOGS_DB}/rows`);
         const logJson = await logResponse.json();
         const allLogs = logJson.rows || [];
-        setLogs(allLogs.filter(l => l.user_id === userId).reverse().slice(0, 3));
+        setLogs(allLogs.filter(l => l.user_id === userId).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 3));
 
         // Fetch Reflections
         const refResponse = await fetch(`https://app.baget.ai/api/public/databases/${DAILY_REFLECTIONS_DB}/rows`);
@@ -96,7 +97,7 @@ const Dashboard = () => {
         const allRefs = refJson.rows || [];
         setReflections(allRefs.filter(r => r.user_id === userId).reverse());
       } else {
-        setProfile({ user_id: userId, interests: 'Guitar, Reading', wake_time: '07:00', sleep_time: '23:00', screen_time_avg_minutes: 180, screen_time_breakdown: 'Social: 90m, Video: 60m' });
+        setProfile({ user_id: userId, interests: 'Guitar, Reading', wake_time: '07:00', sleep_time: '23:00', screen_time_avg_minutes: 180, screen_time_breakdown: 'Social: 90m, Video: 60m', whatsapp: '+1234567890' });
         handleGeneratePlan(userId);
       }
       setLoading(false);
@@ -124,6 +125,26 @@ const Dashboard = () => {
       console.error('Generation failed:', err);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleTestConflict = async () => {
+    setSendingConflict(true);
+    try {
+      const userId = localStorage.getItem('ebb_user_id');
+      const res = await fetch('/api/whatsapp/conflict/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (res.ok) {
+        alert('Conflict message triggered! Check your WhatsApp (simulated).');
+        fetchData();
+      }
+    } catch (err) {
+      alert('Failed to trigger conflict.');
+    } finally {
+      setSendingConflict(false);
     }
   };
 
@@ -189,13 +210,6 @@ const Dashboard = () => {
     );
   }
 
-  const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const groupedBlocks = plan?.blocks?.reduce((acc, block) => {
-    if (!acc[block.day]) acc[block.day] = [];
-    acc[block.day].push(block);
-    return acc;
-  }, {}) || {};
-
   return (
     <div className="min-h-screen bg-ebb-cream text-ebb-slate pb-32">
       <header className="fixed top-0 left-0 right-0 bg-ebb-cream/80 backdrop-blur-lg z-40 border-b border-ebb-sage/10">
@@ -245,25 +259,41 @@ const Dashboard = () => {
               </p>
             </section>
 
-            {/* Time Theft Audit Trigger */}
+            {/* Test Conflict Section */}
             <section className="bg-white p-8 rounded-[40px] border border-ebb-sage/10 shadow-soft">
                <div className="flex items-center gap-4 mb-4">
                  <div className="w-12 h-12 rounded-2xl bg-ebb-rose/10 flex items-center justify-center text-ebb-rose">
-                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                  </div>
                  <div>
-                   <h3 className="font-serif font-semibold text-xl italic text-ebb-slate">Audit Your Stolen Time</h3>
-                   <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Screen-Time Correlation</p>
+                   <h3 className="font-serif font-semibold text-xl italic text-ebb-slate">Conflict Resolution</h3>
+                   <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Interactive Handler</p>
                  </div>
                </div>
-               <p className="text-sm text-slate-500 mb-6 leading-relaxed">Ebb will correlate your screen usage data with your calendar blocks to identify specific windows of "Time Theft."</p>
+               <p className="text-sm text-slate-500 mb-6 leading-relaxed">Simulate a schedule conflict and test the AI response handler via WhatsApp.</p>
                <button 
-                onClick={handleAnalyzeScreenTime}
-                disabled={analyzingScreenTime}
-                className="w-full py-4 bg-ebb-slate text-white rounded-3xl font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-xl shadow-ebb-slate/20 disabled:opacity-50"
+                onClick={handleTestConflict}
+                disabled={sendingConflict}
+                className="w-full py-4 bg-ebb-rose text-white rounded-3xl font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-xl shadow-ebb-rose/20 disabled:opacity-50"
                >
-                 {analyzingScreenTime ? 'Analyzing Correlation...' : 'Run Time-Theft Audit'}
+                 {sendingConflict ? 'Triggering...' : 'Test Conflict Question'}
                </button>
+            </section>
+
+            {/* Recent Coaching */}
+            <section className="space-y-4">
+               <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 pl-1">Recent Coaching</h3>
+               <div className="space-y-3">
+                  {logs.map((log, i) => (
+                    <div key={i} className={`p-5 rounded-[28px] text-sm ${log.direction === 'outbound' ? 'bg-ebb-slate text-white' : 'bg-white border border-ebb-sage/10'}`}>
+                       <p className="opacity-90 italic">"{log.body.split('[')[0]}"</p>
+                       <div className="mt-3 flex items-center justify-between">
+                          <span className="text-[9px] uppercase font-bold opacity-40 tracking-wider">{log.direction === 'outbound' ? 'Assistant' : 'You'}</span>
+                          <span className="text-[9px] opacity-40">{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                       </div>
+                    </div>
+                  ))}
+               </div>
             </section>
 
             {/* Today's Blocks */}
@@ -287,57 +317,14 @@ const Dashboard = () => {
           </>
         )}
 
-        {view === 'analysis' && screenTimeAnalysis && (
-          <div className="space-y-10 pb-24">
-             <div className="text-center">
-               <h2 className="text-3xl font-serif font-semibold italic text-ebb-rose">Stolen Time Report</h2>
-               <p className="text-slate-500 mt-2">Analysis of digital leakage patterns.</p>
-             </div>
-
-             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white p-6 rounded-[32px] border border-ebb-rose/20 shadow-soft text-center">
-                   <p className="text-3xl font-serif font-bold text-ebb-rose">{screenTimeAnalysis.stolen_time_report.weekly_stolen_hours}h</p>
-                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">Weekly Stolen</p>
-                </div>
-                <div className="bg-white p-6 rounded-[32px] border border-ebb-rose/20 shadow-soft text-center">
-                   <p className="text-lg font-serif font-bold leading-tight line-clamp-1">{screenTimeAnalysis.stolen_time_report.top_thief}</p>
-                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">Primary Thief</p>
-                </div>
-             </div>
-
-             <div className="bg-white p-8 rounded-[40px] border border-ebb-rose/10 shadow-soft">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-ebb-rose mb-4">Vulnerable Windows</h3>
-                <div className="flex flex-wrap gap-2">
-                   {screenTimeAnalysis.stolen_time_report.vulnerable_windows.map((win, i) => (
-                     <span key={i} className="px-4 py-2 bg-ebb-rose/5 text-ebb-rose rounded-full text-xs font-bold uppercase tracking-widest">{win}</span>
-                   ))}
-                </div>
-                <p className="text-sm text-slate-500 mt-6 leading-relaxed italic">"{screenTimeAnalysis.stolen_time_report.analysis}"</p>
-             </div>
-
-             <div className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 pl-1">Personalized Coaching Prompts</h3>
-                <div className="space-y-3">
-                   {screenTimeAnalysis.coaching_prompts.map(prompt => (
-                     <div key={prompt.id} className="bg-ebb-slate p-6 rounded-3xl text-white shadow-lg relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-3 bg-white/10 rounded-bl-3xl text-[9px] font-bold uppercase tracking-widest">{prompt.trigger}</div>
-                        <p className="text-sm font-serif italic opacity-90 leading-relaxed pr-12">"{prompt.message}"</p>
-                     </div>
-                   ))}
-                </div>
-             </div>
-
-             <button onClick={() => setView('dashboard')} className="w-full py-4 bg-ebb-cream text-ebb-sage rounded-full font-bold text-xs uppercase tracking-widest hover:bg-ebb-sage/5 transition-all">Back to Dashboard</button>
-          </div>
-        )}
-
         {view === 'proposal' && (
-          <div className="space-y-12 pb-24">
+           <div className="space-y-12 pb-24">
             <div className="text-center">
               <h2 className="text-3xl font-serif font-semibold italic">Your Reset Plan</h2>
               <p className="text-slate-500 mt-2">Redesigned for human sustainability.</p>
             </div>
-            {/* ... Plan blocks (day order) ... */}
+            {/* Plan Display logic... */}
+            <button onClick={() => setView('dashboard')} className="w-full py-4 bg-ebb-slate text-white rounded-full font-bold">Return Home</button>
           </div>
         )}
       </main>
