@@ -1,4 +1,3 @@
-
 import { google } from 'googleapis';
 
 const USER_INTEGRATIONS_DB = 'c06cb451-345f-44d1-a6f1-cad8cdfeb79c';
@@ -34,6 +33,7 @@ export async function fetchGoogleCalendarEvents(accessToken: string) {
   });
 
   if (!response.ok) return [];
+
   const data = await response.json();
   return (data.items || []).map((item: any) => ({
     id: item.id,
@@ -45,10 +45,8 @@ export async function fetchGoogleCalendarEvents(accessToken: string) {
 
 /**
  * Securely writes an event to the Ebb Reset Plan calendar.
- * Prevents overwriting primary calendar data.
  */
 export async function secureGoogleCalendarWrite(accessToken: string, userId: string, calendarId: string, event: any) {
-  // Validation: Never write to primary
   if (calendarId === 'primary') {
     throw new Error('SECURITY_VIOLATION: Writing to primary calendar is prohibited.');
   }
@@ -64,68 +62,107 @@ export async function secureGoogleCalendarWrite(accessToken: string, userId: str
 
   if (!response.ok) {
     const err = await response.json();
-    throw new Error(`Google API Error: ${err.error.message}`);
+    throw new Error(`Google API Error: ${err.error?.message || 'Unknown'}`);
   }
 
   return response.json();
 }
 
 /**
- * Updates an existing calendar event (e.g., reschedule).
+ * Updates an existing Google Calendar event.
  */
-export async function updateGoogleCalendarEvent(accessToken: string, calendarId: string, eventId: string, updates: any) {
+export async function updateGoogleCalendarEvent(accessToken: string, calendarId: string, eventId: string, event: any) {
   const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(updates),
+    body: JSON.stringify(event),
   });
 
   if (!response.ok) {
     const err = await response.json();
-    throw new Error(`Google API Error: ${err.error.message}`);
+    throw new Error(`Google API Patch Error: ${err.error?.message || 'Unknown'}`);
   }
 
   return response.json();
 }
 
 /**
- * Maps a ResetBlock to a Google Calendar event object.
+ * Lists events for a specific day in a specific calendar.
  */
-export function mapBlockToGoogleEvent(block: any, startAnchor: Date) {
-  const dayOffset = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].indexOf(block.day);
-  const date = new Date(startAnchor);
-  date.setDate(date.getDate() + dayOffset);
+export async function listEventsForDay(accessToken: string, calendarId: string, date: string) {
+  const timeMin = new Date(date);
+  timeMin.setHours(0, 0, 0, 0);
+  const timeMax = new Date(date);
+  timeMax.setHours(23, 59, 59, 999);
 
-  const [startH, startM] = block.start_time.split(':');
-  const [endH, endM] = block.end_time.split(':');
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?timeMin=${timeMin.toISOString()}&timeMax=${timeMax.toISOString()}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
 
-  const start = new Date(date);
-  start.setHours(parseInt(startH), parseInt(startM), 0);
+  if (!response.ok) return [];
 
-  const end = new Date(date);
-  end.setHours(parseInt(endH), parseInt(endM), 0);
+  const data = await response.json();
+  return data.items || [];
+}
+
+/**
+ * Deletes an event from a calendar.
+ */
+export async function deleteGoogleCalendarEvent(accessToken: string, calendarId: string, eventId: string) {
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok && response.status !== 204) {
+    throw new Error('Failed to delete Google Calendar event');
+  }
+}
+
+/**
+ * Utility: Map Reset Block to Google Event.
+ */
+export function mapBlockToGoogleEvent(block: any, anchorDate: Date) {
+  const dayOffsetMap: { [key: string]: number } = {
+    'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6
+  };
   
-  // Handle overnight
-  if (end < start) end.setDate(end.getDate() + 1);
+  const targetDate = new Date(anchorDate);
+  targetDate.setDate(targetDate.getDate() + dayOffsetMap[block.day]);
+  
+  const [startH, startM] = block.start_time.split(':').map(Number);
+  const [endH, endM] = block.end_time.split(':').map(Number);
+  
+  const start = new Date(targetDate);
+  start.setHours(startH, startM, 0, 0);
+  
+  const end = new Date(targetDate);
+  end.setHours(endH, endM, 0, 0);
+
+  // Handle overnight blocks (e.g. sleep 23:00 to 07:00)
+  if (end < start) {
+    end.setDate(end.getDate() + 1);
+  }
 
   return {
-    summary: `Ebb: ${block.title}`,
-    description: block.description,
+    summary: block.title,
+    description: `${block.description}\n\n[ebb_category:${block.category}]`,
     start: { dateTime: start.toISOString() },
     end: { dateTime: end.toISOString() },
-    colorId: block.category === 'Foundation' ? '8' : block.category === 'Focus' ? '6' : '1',
+    colorId: block.category === 'Foundation' ? '8' : block.category === 'Growth' ? '10' : '5'
   };
 }
 
 /**
- * Utility to get the ISO date of the next Monday.
+ * Utility: Get upcoming Monday.
  */
 export function getNextMonday() {
-  const d = new Date();
-  d.setDate(d.getDate() + ((7 - d.getDay() + 1) % 7 || 7));
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const now = new Date();
+  const nextMonday = new Date();
+  nextMonday.setDate(now.getDate() + (1 + 7 - now.getDay()) % 7);
+  nextMonday.setHours(0, 0, 0, 0);
+  return nextMonday;
 }
