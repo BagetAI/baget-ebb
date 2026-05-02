@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beta Access | Ebb AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F9F7F2; }
+        .font-serif { font-family: 'Lora', serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Load the Login Component -->
+    <script type="text/babel" src="Login.jsx"></script>
+    
+    <script type="text/babel">
+        // Ensure scripts are loaded before rendering
+        const render = () => {
+            if (window.Login) {
+                const root = ReactDOM.createRoot(document.getElementById('root'));
+                root.render(<window.Login />);
+            } else {
+                setTimeout(render, 100);
+            }
+        };
+        render();
+    </script>
+</body>
+</html>
