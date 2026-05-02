@@ -22,20 +22,28 @@ const Login = () => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessCode })
+        body: JSON.stringify({ accessCode: accessCode.trim() })
       });
 
-      const data = await response.json();
+      let data;
+      const text = await response.text();
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Non-JSON response:', text);
+        throw new Error(`Server returned non-JSON response (Status ${response.status})`);
+      }
 
-      if (data.success) {
+      if (response.ok && data.success) {
         localStorage.setItem('ebb_beta_authorized', 'true');
         // Redirect to onboarding or dashboard
         window.location.href = '/onboarding.html';
       } else {
-        setError(data.error || 'Access denied.');
+        setError(data.error || 'Access denied. Please check your code.');
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
+      console.error('Login error:', err);
+      setError(`Connection error: ${err.message}. Please check your internet or contact support.`);
     } finally {
       setLoading(false);
     }
@@ -82,7 +90,7 @@ const Login = () => {
               <motion.p 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-rose-500 text-sm font-medium"
+                className="text-rose-500 text-sm font-medium bg-rose-50 p-4 rounded-2xl"
               >
                 {error}
               </motion.p>

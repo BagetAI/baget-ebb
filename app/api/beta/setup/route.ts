@@ -8,7 +8,9 @@ const BETA_ACCESS_CODE = 'EBB-BETA-2026';
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, accessCode } = await req.json();
+    const body = await req.json();
+    const userId = body?.userId;
+    const accessCode = body?.accessCode?.trim();
 
     // Verify Beta Access Code
     if (accessCode !== BETA_ACCESS_CODE) {
@@ -16,6 +18,10 @@ export async function POST(req: NextRequest) {
         success: false, 
         error: 'Invalid access code. Please check your beta invitation.' 
       }, { status: 403 });
+    }
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
     }
 
     // 1. Initialize Profile for the test user
@@ -62,6 +68,7 @@ export async function POST(req: NextRequest) {
       message: 'Beta environment initialized. Access granted.' 
     });
   } catch (error: any) {
+    console.error('Beta Setup API Error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
